@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Learning Recommendations{% endblock %}
+{% block page_title %}My Learning Path{% endblock %}
+{% block page_subtitle %}Personalized courses to close your skill gaps{% endblock %}
+
+{% block content %}
+<div id="auth-check"></div>
+
+<!-- Target Role Selector -->
+<div class="card mb-4 animate-in">
+  <div class="card-header">
+    <span class="card-title"><i class="bi bi-mortarboard-fill" style="color:var(--primary)"></i> Get Learning Recommendations</span>
+    <span class="ai-badge">Gemini AI</span>
+  </div>
+  <div class="card-body">
+    <div class="grid-2">
+      <div>
+        <label class="form-label">Target Role *</label>
+        <select class="form-select" id="role-select">
+          <option value="">Select a target role...</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary w-100" onclick="getRecommendations()">
+          <i class="bi bi-stars"></i> Get AI Learning Recommendations
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Skill Gap Summary -->
+<div id="gap-summary" style="display:none" class="mb-4">
+  <div class="card animate-in">
+    <div class="card-header">
+      <span class="card-title">Skill Gaps to Address</span>
+      <span id="gap-count-badge" class="badge badge-danger"></span>
+    </div>
+    <div class="card-body">
+      <div id="gap-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Internal LMS -->
+<div id="internal-section" style="display:none" class="mb-4">
+  <div class="card animate-in">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-building" style="color:var(--accent)"></i> Internal Learning Modules</span>
+      <span class="badge badge-info">LMS</span>
+    </div>
+    <div class="card-body">
+      <div class="grid-3" id="internal-modules"></div>
+    </div>
+  </div>
+</div>
+
+<!-- AI Recommendations -->
+<div id="ai-section" style="display:none">
+  <div class="card animate-in">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-stars" style="color:var(--warning)"></i> AI-Powered Recommendations</span>
+      <span class="ai-badge">Gemini AI</span>
+    </div>
+    <div class="card-body">
+      <div id="ai-recommendations"></div>
+    </div>
+  </div>
+</div>
+
+<!-- My Progress -->
+<div class="card mt-4 animate-in">
+  <div class="card-header">
+    <span class="card-title">My Learning Progress</span>
+    <button class="btn btn-outline btn-sm" onclick="loadProgress()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="tb-table" id="progress-table">
+      <thead>
+        <tr>
+          <th>Course</th><th>Provider</th><th>Skill</th><th>Status</th><th>Score</th>
+        </tr>
+      </thead>
+      <tbody id="progress-tbody">
+        <tr><td colspan="5" class="text-center" style="padding:30px;color:var(--text-muted)">
+          <div class="spinner mx-auto"></div>
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+requireAuth();
+const user = Auth.getUser();
+const empId = user?.employee_id;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!empId) {
+    Toast.warning('No employee profile linked to this account');
+    return;
+  }
+  try {
+    const roles = await API.get('/roles');
+    const sel = document.getElementById('role-select');
+    roles.forEach(r => sel.innerHTML += `<option value="${r.id}">${r.name}</option>`);
+  } catch {}
+  loadProgress();
+});
+
+async function getRecommendations() {
+  const roleId = document.getElementById('role-select').value;
+  if (!roleId) { Toast.warning('Please select a target role'); return; }
+
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner-sm"></div> Generating with AI...';
+
+  try {
+    const data = await API.post('/learning-recommendations', {
+      employee_id: empId,
+      role_id: parseInt(roleId),
+    });
+
+    // Show gap summary
+    if (data.skill_gaps.length > 0) {
+      document.getElementById('gap-summary').style.display = 'block';
+      document.getElementById('gap-count-badge').textContent = `${data.skill_gaps.length} gaps found`;
+      document.getElementById('gap-tags').innerHTML = data.skill_gaps.map(s =>
+        `<span class="skill-tag missing"><i class="bi bi-x-circle"></i> ${s}</span>`
+      ).join('');
+    }
+
+    // Internal modules
+    if (data.internal_modules.length > 0) {
+      document.getElementById('internal-section').style.display = 'block';
+      document.getElementById('internal-modules').innerHTML = data.internal_modules.map(m => `
+        <div class="card" style="border-color:rgba(6,182,212,0.2)">
+          <div class="card-body" style="padding:16px">
+            <div style="font-weight:600;font-size:13px;color:var(--text-primary);margin-bottom:6px">${m.title}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">${m.provider} • ${m.duration_hours}h • ${m.level}</div>
+            <div class="flex gap-2">
+              <span class="badge badge-info">${m.module_type}</span>
+              ${m.skill_name ? `<span class="badge badge-primary">${m.skill_name}</span>` : ''}
+            </div>
+            ${m.url ? `<a href="${m.url}" target="_blank" class="btn btn-outline btn-sm mt-2 w-100">Open Course</a>` : ''}
+          </div>
+        </div>`).join('');
+    }
+
+    // AI recommendations
+    if (data.ai_recommendations.length > 0) {
+      document.getElementById('ai-section').style.display = 'block';
+      document.getElementById('ai-recommendations').innerHTML = data.ai_recommendations.map(skillRec => `
+        <div class="mb-4">
+          <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:10px;display:flex;align-items:center;gap:8px">
+            <i class="bi bi-lightning-fill" style="color:var(--warning)"></i> ${skillRec.skill}
+          </div>
+          <div class="grid-2">
+            ${(skillRec.recommendations || []).map(rec => `
+              <div class="card" style="border-color:rgba(99,102,241,0.2)">
+                <div class="card-body" style="padding:14px">
+                  <div style="font-weight:600;font-size:13px;color:var(--text-primary);margin-bottom:4px">${rec.title}</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">${rec.provider} • ${rec.duration} • ${rec.level}</div>
+                  <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">${rec.description || ''}</div>
+                  <div class="flex gap-2">
+                    <span class="badge badge-secondary">${rec.type}</span>
+                    <span class="badge badge-primary">${rec.level}</span>
+                  </div>
+                  ${rec.url && rec.url !== 'null' ? `<a href="${rec.url}" target="_blank" class="btn btn-outline btn-sm mt-2 w-100"><i class="bi bi-box-arrow-up-right"></i> Open</a>` : ''}
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`).join('');
+    }
+
+    Toast.success(`${data.ai_recommendations.length} skill recommendations loaded!`);
+  } catch (e) {
+    Toast.error('Failed to get recommendations: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-stars"></i> Get AI Learning Recommendations';
+  }
+}
+
+async function loadProgress() {
+  if (!empId) return;
+  try {
+    const emp = await API.get(`/employees/${empId}`);
+    const records = emp.learning_records || [];
+    const tbody = document.getElementById('progress-tbody');
+    if (records.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">📚</div><div class="empty-state-title">No learning records yet</div></div></td></tr>';
+      return;
+    }
+    const statusColors = { completed: 'badge-success', in_progress: 'badge-warning', enrolled: 'badge-muted' };
+    tbody.innerHTML = records.map(r => `<tr>
+      <td style="font-weight:500">${r.module_title || 'Module'}</td>
+      <td><span class="badge badge-muted">${r.provider || '—'}</span></td>
+      <td>—</td>
+      <td><span class="badge ${statusColors[r.status] || 'badge-muted'}">${r.status.replace('_',' ')}</span></td>
+      <td>${r.score ? r.score.toFixed(0) + '%' : '—'}</td>
+    </tr>`).join('');
+  } catch (e) {
+    Toast.error('Failed to load progress');
+  }
+}
+</script>
+{% endblock %}

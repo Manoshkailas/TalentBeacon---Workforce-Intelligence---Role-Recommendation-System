@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}My Skills{% endblock %}
+{% block page_title %}My Skills Profile{% endblock %}
+{% block page_subtitle %}Manage your skills and proficiency levels{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary btn-sm" onclick="openAddSkill()">
+  <i class="bi bi-plus-lg"></i> Add Skill
+</button>
+{% endblock %}
+
+{% block content %}
+<div id="auth-check"></div>
+
+<div class="grid-2">
+  <!-- Skill Overview -->
+  <div>
+    <div class="card mb-4 animate-in">
+      <div class="card-header">
+        <span class="card-title">Skill Breakdown by Category</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-container" style="height:220px">
+          <canvas id="cat-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card animate-in">
+      <div class="card-header">
+        <span class="card-title">Proficiency Distribution</span>
+      </div>
+      <div class="card-body" id="proficiency-bars"></div>
+    </div>
+  </div>
+
+  <!-- Skills List -->
+  <div class="card animate-in">
+    <div class="card-header">
+      <span class="card-title">All Skills</span>
+      <select class="form-select" id="cat-filter" style="width:140px" onchange="renderMySkills()">
+        <option value="">All</option>
+        <option value="technical">Technical</option>
+        <option value="analytics">Analytics</option>
+        <option value="soft">Soft</option>
+      </select>
+    </div>
+    <div class="card-body" id="skills-list" style="padding:0">
+      <div class="flex-center" style="padding:40px"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Skill Panel -->
+<div id="add-skill-panel" style="display:none" class="card mt-4 animate-in">
+  <div class="card-header">
+    <span class="card-title">Add / Update Skill</span>
+    <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-skill-panel').style.display='none'">✕</button>
+  </div>
+  <div class="card-body">
+    <div class="grid-3">
+      <div>
+        <label class="form-label">Skill *</label>
+        <select class="form-select" id="new-skill-id">
+          <option value="">Select skill...</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Proficiency *</label>
+        <select class="form-select" id="new-proficiency">
+          <option value="beginner">Beginner</option>
+          <option value="intermediate" selected>Intermediate</option>
+          <option value="advanced">Advanced</option>
+          <option value="expert">Expert</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Years with Skill</label>
+        <input class="form-control" type="number" id="new-years" min="0" max="30" step="0.5" value="1"/>
+      </div>
+    </div>
+    <button class="btn btn-primary mt-3" onclick="addSkill()">
+      <i class="bi bi-plus-lg"></i> Add to Profile
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+requireAuth();
+const user = Auth.getUser();
+const empId = user?.employee_id;
+let mySkills = [], allSkills = [];
+let catChart = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!empId) { Toast.warning('No employee profile linked'); return; }
+  await Promise.all([loadMySkills(), loadAllSkills()]);
+});
+
+async function loadMySkills() {
+  try {
+    const emp = await API.get(`/employees/${empId}`);
+    mySkills = emp.skills || [];
+    renderMySkills();
+    renderCharts();
+  } catch (e) { Toast.error('Failed to load skills'); }
+}
+
+async function loadAllSkills() {
+  try {
+    allSkills = await API.get('/skills');
+    const sel = document.getElementById('new-skill-id');
+    allSkills.forEach(s => sel.innerHTML += `<option value="${s.id}">${s.name} (${s.category})</option>`);
+  } catch {}
+}
+
+function renderMySkills() {
+  const filter = document.getElementById('cat-filter').value;
+  const filtered = mySkills.filter(s => !filter || s.skill_category === filter);
+  const list = document.getElementById('skills-list');
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💡</div><div class="empty-state-title">No skills yet</div><div class="empty-state-desc">Click "Add Skill" to get started</div></div>';
+    return;
+  }
+
+  const PROF_MAP = { expert: 4, advanced: 3, intermediate: 2, beginner: 1 };
+  const sorted = [...filtered].sort((a, b) => (PROF_MAP[b.proficiency_level]||1) - (PROF_MAP[a.proficiency_level]||1));
+
+  const pctMap = { expert: 100, advanced: 75, intermediate: 50, beginner: 25 };
+  const colMap = { expert: 'var(--secondary)', advanced: 'var(--success)', intermediate: 'var(--warning)', beginner: 'var(--text-muted)' };
+
+  list.innerHTML = sorted.map(s => `
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border)">
+      <div class="flex-between mb-2">
+        <div class="flex gap-2" style="align-items:center">
+          <span class="skill-tag ${s.skill_category || 'technical'}">${s.skill_name}</span>
+          <span class="badge badge-muted">${s.years_with_skill}y</span>
+        </div>
+        <div class="flex gap-2" style="align-items:center">
+          ${proficiencyBadge(s.proficiency_level)}
+          <button class="btn btn-ghost btn-sm" title="Remove" 
+                  onclick="removeSkill(${s.skill_id})" style="color:var(--danger)">
+            <i class="bi bi-trash3"></i>
+          </button>
+        </div>
+      </div>
+      <div class="progress">
+        <div class="progress-bar" style="width:${pctMap[s.proficiency_level]||25}%;background:${colMap[s.proficiency_level]||'var(--text-muted)'}"></div>
+      </div>
+    </div>`).join('');
+}
+
+function renderCharts() {
+  // Category distribution
+  const catCount = {};
+  mySkills.forEach(s => { catCount[s.skill_category || 'other'] = (catCount[s.skill_category || 'other'] || 0) + 1; });
+  const catColors = { technical: '#6366F1', analytics: '#06B6D4', soft: '#10B981', domain: '#F59E0B' };
+
+  if (catChart) catChart.destroy();
+  const ctx = document.getElementById('cat-chart').getContext('2d');
+  catChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(catCount).map(c => c.charAt(0).toUpperCase() + c.slice(1)),
+      datasets: [{
+        data: Object.values(catCount),
+        backgroundColor: Object.keys(catCount).map(c => catColors[c] || '#6366F1'),
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94A3B8', padding: 10, font: { size: 11 } } }
+      }
+    }
+  });
+
+  // Proficiency bars
+  const profCount = { expert: 0, advanced: 0, intermediate: 0, beginner: 0 };
+  mySkills.forEach(s => { if (profCount[s.proficiency_level] !== undefined) profCount[s.proficiency_level]++; });
+  const total = mySkills.length || 1;
+  const profColors = { expert: 'var(--secondary)', advanced: 'var(--success)', intermediate: 'var(--warning)', beginner: 'var(--text-muted)' };
+  document.getElementById('proficiency-bars').innerHTML = Object.entries(profCount).map(([level, count]) => `
+    <div class="mb-3">
+      <div class="flex-between mb-1">
+        <span style="font-size:13px;color:var(--text-secondary);text-transform:capitalize">${level}</span>
+        <span style="font-size:13px;font-weight:600;color:${profColors[level]}">${count}</span>
+      </div>
+      <div class="progress">
+        <div class="progress-bar" style="width:${(count/total*100).toFixed(0)}%;background:${profColors[level]}"></div>
+      </div>
+    </div>`).join('');
+}
+
+function openAddSkill() {
+  document.getElementById('add-skill-panel').style.display = 'block';
+  document.getElementById('add-skill-panel').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function addSkill() {
+  const skillId    = document.getElementById('new-skill-id').value;
+  const proficiency = document.getElementById('new-proficiency').value;
+  const years       = document.getElementById('new-years').value;
+  if (!skillId) { Toast.warning('Please select a skill'); return; }
+
+  try {
+    await API.post(`/employees/${empId}/skills`, {
+      skill_id: parseInt(skillId),
+      proficiency_level: proficiency,
+      years_with_skill: parseFloat(years),
+    });
+    Toast.success('Skill added to your profile!');
+    await loadMySkills();
+    document.getElementById('add-skill-panel').style.display = 'none';
+  } catch (e) { Toast.error(e.message); }
+}
+
+async function removeSkill(skillId) {
+  if (!confirm('Remove this skill from your profile?')) return;
+  try {
+    await API.delete(`/employees/${empId}/skills/${skillId}`);
+    Toast.success('Skill removed');
+    await loadMySkills();
+  } catch (e) { Toast.error(e.message); }
+}
+</script>
+{% endblock %}

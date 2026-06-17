@@ -1,0 +1,1507 @@
+{% extends "base.html" %}
+
+{% block title %}Skill Gap Analysis{% endblock %}
+
+{% block page_title %}Skill Gap Analysis{% endblock %}
+{% block page_subtitle %}Identify missing skills across your team{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Page Layout ─────────────────────────────────────────── */
+  .gap-page { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  /* ── Analysis Form Card ──────────────────────────────────── */
+  .form-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.75rem 2rem;
+  }
+  .form-card-header {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1.5rem;
+  }
+  .form-card-header .card-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; color: #fff;
+  }
+  .form-card-header h5 {
+    margin: 0; font-size: 1rem; font-weight: 700; color: var(--text-primary);
+  }
+  .form-card-header p {
+    margin: 0; font-size: .8rem; color: var(--text-muted);
+  }
+
+  /* ── Toggle Switch ───────────────────────────────────────── */
+  .analysis-toggle {
+    display: flex;
+    background: var(--bg-surface, #1a1f2e);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    width: fit-content;
+    margin-bottom: 1.5rem;
+  }
+  .analysis-toggle .toggle-btn {
+    padding: .5rem 1.5rem;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: .875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .analysis-toggle .toggle-btn.active {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, .35);
+  }
+
+  /* ── Form Grid ───────────────────────────────────────────── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
+
+  .form-group label {
+    display: block;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: .4rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .form-group select,
+  .form-group input[type="text"] {
+    width: 100%;
+    background: var(--bg-surface, #1a1f2e);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-primary);
+    padding: .65rem 1rem;
+    font-size: .9rem;
+    transition: border-color .2s, box-shadow .2s;
+    outline: none;
+    appearance: none;
+  }
+  .form-group select:focus,
+  .form-group input[type="text"]:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+  }
+  .form-group select option { background: #1a1f2e; color: var(--text-primary); }
+
+  /* Employee search wrapper */
+  .emp-search-wrap { position: relative; }
+  .emp-search-wrap .search-icon {
+    position: absolute; left: .75rem; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); pointer-events: none; font-size: .9rem;
+  }
+  .emp-search-wrap input { padding-left: 2.2rem !important; }
+  .emp-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+  .emp-dropdown.show { display: block; }
+  .emp-dropdown-item {
+    padding: .6rem 1rem;
+    cursor: pointer;
+    font-size: .875rem;
+    color: var(--text-primary);
+    display: flex; align-items: center; gap: .6rem;
+    transition: background .15s;
+  }
+  .emp-dropdown-item:hover { background: rgba(99,102,241,.12); }
+  .emp-dropdown-item .emp-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: .7rem; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .emp-dropdown-item .emp-dept {
+    font-size: .75rem; color: var(--text-muted); margin-top: 1px;
+  }
+
+  /* ── Analyze Button ──────────────────────────────────────── */
+  .btn-analyze {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: .75rem 2rem;
+    font-weight: 700;
+    font-size: .95rem;
+    cursor: pointer;
+    display: flex; align-items: center; gap: .6rem;
+    transition: all .2s;
+    box-shadow: 0 4px 14px rgba(99,102,241,.35);
+    margin-top: 1rem;
+  }
+  .btn-analyze:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(99,102,241,.45); }
+  .btn-analyze:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+  .btn-analyze .spinner-border { width: 1rem; height: 1rem; border-width: 2px; }
+
+  /* ── Results Section ─────────────────────────────────────── */
+  .results-section { display: none; }
+  .results-section.show { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  /* ── Severity Score Hero ─────────────────────────────────── */
+  .severity-hero {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+  .severity-score-wrap {
+    display: flex; align-items: center; gap: 1.5rem;
+    flex: 1; min-width: 200px;
+  }
+  .severity-ring {
+    position: relative;
+    width: 110px; height: 110px;
+  }
+  .severity-ring svg { transform: rotate(-90deg); }
+  .severity-ring .ring-bg { fill: none; stroke: var(--border); stroke-width: 10; }
+  .severity-ring .ring-fill { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset .8s ease; }
+  .severity-ring .ring-text {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    text-align: center;
+  }
+  .severity-ring .ring-text .score-num {
+    font-size: 1.6rem; font-weight: 800; line-height: 1;
+  }
+  .severity-ring .ring-text .score-label {
+    font-size: .65rem; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .severity-info h4 {
+    font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0 0 .25rem;
+  }
+  .severity-info p { font-size: .875rem; color: var(--text-muted); margin: 0 0 .5rem; }
+  .severity-badge {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .3rem .8rem; border-radius: 20px;
+    font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .severity-badge.critical { background: rgba(239,68,68,.15); color: #ef4444; }
+  .severity-badge.high     { background: rgba(249,115,22,.15); color: #f97316; }
+  .severity-badge.medium   { background: rgba(234,179,8,.15);  color: #eab308; }
+  .severity-badge.low      { background: rgba(34,197,94,.15);  color: #22c55e; }
+
+  .severity-stats {
+    display: flex; gap: 2rem; flex-wrap: wrap;
+  }
+  .sstat { text-align: center; }
+  .sstat .sstat-num { font-size: 1.5rem; font-weight: 800; }
+  .sstat .sstat-lbl { font-size: .75rem; color: var(--text-muted); font-weight: 600; }
+
+  /* ── Skills Columns ──────────────────────────────────────── */
+  .skills-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+  }
+  @media (max-width: 900px) { .skills-columns { grid-template-columns: 1fr; } }
+
+  .skills-col {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    display: flex; flex-direction: column; gap: .75rem;
+  }
+  .skills-col-header {
+    display: flex; align-items: center; gap: .6rem;
+    padding-bottom: .75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .skills-col-header .col-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .skills-col-header h6 { font-size: .875rem; font-weight: 700; margin: 0; color: var(--text-primary); }
+  .skills-col-header .col-count {
+    margin-left: auto;
+    background: rgba(255,255,255,.07);
+    border-radius: 20px;
+    padding: .15rem .6rem;
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .skill-tag {
+    display: flex; align-items: center; gap: .5rem;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .5rem .75rem;
+    font-size: .82rem;
+    color: var(--text-primary);
+    transition: background .15s;
+  }
+  .skill-tag:hover { background: rgba(255,255,255,.08); }
+  .skill-tag .skill-icon { font-size: .9rem; }
+  .skill-tag .skill-name { flex: 1; font-weight: 500; }
+  .skill-tag .severity-pill {
+    font-size: .7rem; font-weight: 700; padding: .15rem .5rem; border-radius: 6px;
+    text-transform: uppercase; letter-spacing: .03em; flex-shrink: 0;
+  }
+  .skill-tag .severity-pill.critical { background: rgba(239,68,68,.2); color: #ef4444; }
+  .skill-tag .severity-pill.high     { background: rgba(249,115,22,.2); color: #f97316; }
+  .skill-tag .severity-pill.medium   { background: rgba(234,179,8,.2);  color: #eab308; }
+  .skill-tag .severity-pill.low      { background: rgba(34,197,94,.2);  color: #22c55e; }
+  .skill-tag .partial-bar-wrap {
+    display: flex; align-items: center; gap: .4rem; margin-left: auto;
+  }
+  .skill-tag .partial-bar {
+    height: 5px; width: 50px; background: var(--border); border-radius: 3px; overflow: hidden;
+  }
+  .skill-tag .partial-bar-fill {
+    height: 100%; background: #eab308; border-radius: 3px; transition: width .4s;
+  }
+  .skill-tag .partial-pct { font-size: .72rem; color: #eab308; font-weight: 600; }
+  .skills-col.missing .skill-tag { border-left: 3px solid #ef4444; }
+  .skills-col.partial .skill-tag  { border-left: 3px solid #eab308; }
+  .skills-col.matched .skill-tag  { border-left: 3px solid #22c55e; }
+
+  /* ── Priority Gaps ───────────────────────────────────────── */
+  .priority-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+  }
+  .priority-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  .priority-card-header h6 {
+    font-size: .95rem; font-weight: 700; margin: 0; color: var(--text-primary);
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .btn-learning {
+    background: linear-gradient(135deg,#8b5cf6,#6366f1);
+    color: #fff; border: none; border-radius: 10px;
+    padding: .45rem 1.1rem; font-size: .8rem; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; gap: .4rem;
+    transition: all .2s;
+  }
+  .btn-learning:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,.4); }
+
+  .priority-list { display: flex; flex-direction: column; gap: .65rem; }
+  .priority-item {
+    display: flex; align-items: center; gap: .85rem;
+    background: rgba(255,255,255,.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .75rem 1rem;
+    transition: background .15s;
+  }
+  .priority-item:hover { background: rgba(255,255,255,.06); }
+  .priority-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .72rem; font-weight: 800; flex-shrink: 0;
+  }
+  .priority-item:nth-child(1) .priority-num { background: rgba(239,68,68,.2); color: #ef4444; }
+  .priority-item:nth-child(2) .priority-num { background: rgba(249,115,22,.2); color: #f97316; }
+  .priority-item:nth-child(3) .priority-num { background: rgba(234,179,8,.2);  color: #eab308; }
+  .priority-item:nth-child(n+4) .priority-num { background: rgba(99,102,241,.2); color: #6366f1; }
+  .priority-info { flex: 1; }
+  .priority-info .p-skill { font-size: .875rem; font-weight: 700; color: var(--text-primary); }
+  .priority-info .p-meta  { font-size: .78rem; color: var(--text-muted); }
+  .priority-label {
+    font-size: .72rem; font-weight: 700; padding: .2rem .6rem; border-radius: 6px;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .priority-label.critical { background: rgba(239,68,68,.15); color: #ef4444; }
+  .priority-label.high     { background: rgba(249,115,22,.15); color: #f97316; }
+  .priority-label.medium   { background: rgba(234,179,8,.15);  color: #eab308; }
+  .priority-label.low      { background: rgba(34,197,94,.15);  color: #22c55e; }
+  .btn-learn-this {
+    background: none; border: 1px solid var(--border);
+    border-radius: 8px; padding: .3rem .7rem;
+    font-size: .75rem; color: var(--text-muted);
+    cursor: pointer; transition: all .15s;
+    white-space: nowrap;
+  }
+  .btn-learn-this:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* ── Team Results ────────────────────────────────────────── */
+  .team-meta-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+  }
+  .team-stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.1rem 1.25rem;
+    text-align: center;
+  }
+  .team-stat-card .ts-num {
+    font-size: 1.75rem; font-weight: 800; line-height: 1;
+  }
+  .team-stat-card .ts-lbl {
+    font-size: .78rem; color: var(--text-muted); font-weight: 600;
+    margin-top: .3rem;
+  }
+  .team-stat-card .ts-icon { font-size: 1.5rem; margin-bottom: .3rem; }
+
+  .chart-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+  }
+  .chart-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .chart-card-header h6 {
+    font-size: .95rem; font-weight: 700; margin: 0; color: var(--text-primary);
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .chart-legend { display: flex; gap: 1rem; }
+  .chart-legend-item {
+    display: flex; align-items: center; gap: .35rem;
+    font-size: .78rem; color: var(--text-muted);
+  }
+  .chart-legend-item .legend-dot {
+    width: 10px; height: 10px; border-radius: 3px;
+  }
+  #teamChartWrap { position: relative; }
+
+  /* ── Team Table ──────────────────────────────────────────── */
+  .team-table-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .team-table-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .team-table-header h6 {
+    font-size: .95rem; font-weight: 700; margin: 0; color: var(--text-primary);
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .team-table-wrap { overflow-x: auto; }
+  .team-table {
+    width: 100%; border-collapse: collapse;
+  }
+  .team-table th {
+    padding: .75rem 1rem; font-size: .75rem; font-weight: 700;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,.02);
+    white-space: nowrap; text-align: left;
+  }
+  .team-table td {
+    padding: .85rem 1rem; font-size: .875rem; color: var(--text-primary);
+    border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+  .team-table tr:last-child td { border-bottom: none; }
+  .team-table tr:hover td { background: rgba(255,255,255,.03); }
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    font-size: .75rem; font-weight: 800;
+  }
+  .rank-1 { background: rgba(234,179,8,.2); color: #eab308; }
+  .rank-2 { background: rgba(156,163,175,.2); color: #9ca3af; }
+  .rank-3 { background: rgba(180,83,9,.2); color: #b45309; }
+  .rank-n { background: rgba(99,102,241,.12); color: #6366f1; }
+
+  .gap-progress-wrap { display: flex; align-items: center; gap: .6rem; }
+  .gap-progress-bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .gap-progress-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+  .gap-pct-lbl { font-size: .75rem; font-weight: 700; min-width: 32px; }
+
+  .member-cell { display: flex; align-items: center; gap: .65rem; }
+  .member-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .member-name { font-weight: 600; }
+  .member-dept { font-size: .75rem; color: var(--text-muted); }
+
+  /* ── Export Bar ──────────────────────────────────────────── */
+  .export-bar {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    flex-wrap: wrap;
+  }
+  .export-bar span { font-size: .8rem; color: var(--text-muted); font-weight: 600; }
+  .btn-export {
+    display: flex; align-items: center; gap: .4rem;
+    background: none; border: 1px solid var(--border);
+    border-radius: 9px; padding: .45rem 1rem;
+    font-size: .8rem; font-weight: 600; color: var(--text-primary);
+    cursor: pointer; transition: all .15s;
+  }
+  .btn-export:hover { border-color: var(--primary); color: var(--primary); background: rgba(99,102,241,.07); }
+  .btn-export.csv:hover { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,.07); }
+  .btn-export.pdf:hover { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,.07); }
+
+  /* ── Empty / Loading States ──────────────────────────────── */
+  .state-box {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 4rem 2rem;
+    text-align: center; color: var(--text-muted);
+  }
+  .state-box .state-icon { font-size: 3rem; margin-bottom: 1rem; }
+  .state-box h6 { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0 0 .4rem; }
+  .state-box p  { font-size: .875rem; margin: 0; }
+
+  /* ── Toast ───────────────────────────────────────────────── */
+  .tb-toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: .9rem 1.25rem;
+    display: flex; align-items: center; gap: .75rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    z-index: 9999; transform: translateY(80px); opacity: 0;
+    transition: all .3s; min-width: 260px;
+  }
+  .tb-toast.show { transform: translateY(0); opacity: 1; }
+  .tb-toast .toast-icon { font-size: 1.2rem; }
+  .tb-toast .toast-msg  { font-size: .875rem; color: var(--text-primary); flex: 1; }
+
+  /* ── Misc ────────────────────────────────────────────────── */
+  .section-divider {
+    display: flex; align-items: center; gap: 1rem;
+    margin: .25rem 0;
+  }
+  .section-divider span {
+    font-size: .78rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--text-muted); white-space: nowrap;
+  }
+  .section-divider::before,
+  .section-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+</style>
+{% endblock %}
+
+{% block header_actions %}
+<div id="export-bar-top" class="export-bar" style="display:none !important;">
+  <span><i class="bi bi-download me-1"></i>Export</span>
+  <button class="btn-export csv" onclick="exportCSV()">
+    <i class="bi bi-filetype-csv"></i> CSV
+  </button>
+  <button class="btn-export pdf" onclick="exportPDF()">
+    <i class="bi bi-file-earmark-pdf"></i> PDF
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="gap-page">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       AUTH GUARD
+  ═══════════════════════════════════════════════════════════════ -->
+  <div id="auth-guard" style="display:none;">
+    <div class="state-box">
+      <div class="state-icon">🔒</div>
+      <h6>Access Restricted</h6>
+      <p>This page is available to Managers and Administrators only.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       MAIN CONTENT (hidden until auth confirmed)
+  ═══════════════════════════════════════════════════════════════ -->
+  <div id="main-content" style="display:none;">
+
+    <!-- ── Analysis Form ───────────────────────────────────── -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <div class="card-icon"><i class="bi bi-search"></i></div>
+        <div>
+          <h5>Configure Analysis</h5>
+          <p>Select analysis type, target employee or team, and the benchmark role</p>
+        </div>
+      </div>
+
+      <!-- Type Toggle -->
+      <div class="analysis-toggle" role="group" aria-label="Analysis type">
+        <button class="toggle-btn active" id="btn-individual" onclick="switchMode('individual')">
+          <i class="bi bi-person-fill"></i> Individual Employee
+        </button>
+        <button class="toggle-btn" id="btn-team" onclick="switchMode('team')">
+          <i class="bi bi-people-fill"></i> Team / Department
+        </button>
+      </div>
+
+      <!-- Form Fields -->
+      <div class="form-grid" id="form-fields">
+
+        <!-- INDIVIDUAL: Employee Search -->
+        <div class="form-group" id="fg-employee">
+          <label><i class="bi bi-person me-1"></i>Employee</label>
+          <div class="emp-search-wrap">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" id="emp-search" placeholder="Search employee name…" autocomplete="off">
+            <input type="hidden" id="emp-id-hidden">
+            <div class="emp-dropdown" id="emp-dropdown"></div>
+          </div>
+        </div>
+
+        <!-- TEAM: Department Select -->
+        <div class="form-group" id="fg-department" style="display:none;">
+          <label><i class="bi bi-building me-1"></i>Department</label>
+          <select id="dept-select">
+            <option value="">— Select Department —</option>
+            <option value="Engineering">Engineering</option>
+            <option value="Product">Product</option>
+            <option value="Design">Design</option>
+            <option value="Data Science">Data Science</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Sales">Sales</option>
+            <option value="HR">HR</option>
+            <option value="Finance">Finance</option>
+            <option value="Operations">Operations</option>
+          </select>
+        </div>
+
+        <!-- Role Select (shared) -->
+        <div class="form-group" id="fg-role">
+          <label><i class="bi bi-briefcase me-1"></i>Target Role</label>
+          <select id="role-select">
+            <option value="">— Select Role —</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Analyze Button -->
+      <button class="btn-analyze" id="btn-analyze" onclick="runAnalysis()">
+        <i class="bi bi-diagram-3"></i> Analyze Gap
+      </button>
+    </div>
+
+    <!-- ── Placeholder State ────────────────────────────────── -->
+    <div id="placeholder-state" class="state-box">
+      <div class="state-icon">🎯</div>
+      <h6>Ready to Analyze</h6>
+      <p>Select an employee or team and a target role, then click <strong>Analyze Gap</strong> to see results.</p>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         INDIVIDUAL RESULTS
+    ══════════════════════════════════════════════════════════ -->
+    <div id="individual-results" class="results-section">
+
+      <!-- Severity Hero -->
+      <div class="severity-hero">
+        <div class="severity-score-wrap">
+          <div class="severity-ring">
+            <svg viewBox="0 0 110 110" width="110" height="110">
+              <circle class="ring-bg" cx="55" cy="55" r="48"/>
+              <circle class="ring-fill" id="ring-fill" cx="55" cy="55" r="48"
+                stroke-dasharray="301.59" stroke-dashoffset="301.59"/>
+            </svg>
+            <div class="ring-text">
+              <div class="score-num" id="score-num">--</div>
+              <div class="score-label">Gap Score</div>
+            </div>
+          </div>
+          <div class="severity-info">
+            <h4 id="emp-result-name">Employee Name</h4>
+            <p id="emp-result-role">Target: Role Name</p>
+            <span class="severity-badge" id="severity-badge">—</span>
+          </div>
+        </div>
+        <div class="severity-stats">
+          <div class="sstat">
+            <div class="sstat-num text-danger" id="stat-missing">0</div>
+            <div class="sstat-lbl">Missing Skills</div>
+          </div>
+          <div class="sstat">
+            <div class="sstat-num text-warning" id="stat-partial">0</div>
+            <div class="sstat-lbl">Partial Skills</div>
+          </div>
+          <div class="sstat">
+            <div class="sstat-num text-success" id="stat-matched">0</div>
+            <div class="sstat-lbl">Skills Matched</div>
+          </div>
+          <div class="sstat">
+            <div class="sstat-num" id="stat-total">0</div>
+            <div class="sstat-lbl">Total Required</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Three Columns -->
+      <div class="skills-columns">
+
+        <!-- Missing -->
+        <div class="skills-col missing">
+          <div class="skills-col-header">
+            <div class="col-dot" style="background:#ef4444;"></div>
+            <h6><i class="bi bi-x-circle-fill text-danger me-1"></i>Missing Required</h6>
+            <span class="col-count" id="missing-count">0</span>
+          </div>
+          <div id="missing-skills-list">
+            <div class="text-muted" style="font-size:.82rem;text-align:center;padding:1rem;">No data yet</div>
+          </div>
+        </div>
+
+        <!-- Partial -->
+        <div class="skills-col partial">
+          <div class="skills-col-header">
+            <div class="col-dot" style="background:#eab308;"></div>
+            <h6><i class="bi bi-dash-circle-fill text-warning me-1"></i>Partial Match</h6>
+            <span class="col-count" id="partial-count">0</span>
+          </div>
+          <div id="partial-skills-list">
+            <div class="text-muted" style="font-size:.82rem;text-align:center;padding:1rem;">No data yet</div>
+          </div>
+        </div>
+
+        <!-- Matched -->
+        <div class="skills-col matched">
+          <div class="skills-col-header">
+            <div class="col-dot" style="background:#22c55e;"></div>
+            <h6><i class="bi bi-check-circle-fill text-success me-1"></i>Fully Matched</h6>
+            <span class="col-count" id="matched-count">0</span>
+          </div>
+          <div id="matched-skills-list">
+            <div class="text-muted" style="font-size:.82rem;text-align:center;padding:1rem;">No data yet</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Priority Gaps -->
+      <div class="priority-card">
+        <div class="priority-card-header">
+          <h6><i class="bi bi-exclamation-triangle-fill text-warning"></i> Priority Gaps to Address</h6>
+          <button class="btn-learning" onclick="goToLearning()">
+            <i class="bi bi-mortarboard-fill"></i> Get Learning Plan
+          </button>
+        </div>
+        <div class="priority-list" id="priority-list">
+          <div class="text-muted" style="font-size:.82rem;text-align:center;padding:1rem;">No priority gaps data</div>
+        </div>
+      </div>
+
+      <!-- Export Bar -->
+      <div class="export-bar">
+        <span><i class="bi bi-download me-1"></i>Export Individual Report</span>
+        <button class="btn-export csv" onclick="exportCSV()">
+          <i class="bi bi-filetype-csv"></i> CSV
+        </button>
+        <button class="btn-export pdf" onclick="exportPDF()">
+          <i class="bi bi-file-earmark-pdf"></i> PDF
+        </button>
+      </div>
+
+    </div><!-- /individual-results -->
+
+    <!-- ══════════════════════════════════════════════════════
+         TEAM RESULTS
+    ══════════════════════════════════════════════════════════ -->
+    <div id="team-results" class="results-section">
+
+      <!-- Team Meta Stats -->
+      <div class="team-meta-row" id="team-meta-row">
+        <div class="team-stat-card">
+          <div class="ts-icon">👥</div>
+          <div class="ts-num" id="ts-members">0</div>
+          <div class="ts-lbl">Team Members</div>
+        </div>
+        <div class="team-stat-card">
+          <div class="ts-icon">🎯</div>
+          <div class="ts-num" id="ts-avg-gap" style="color:#f97316;">0%</div>
+          <div class="ts-lbl">Avg Gap Score</div>
+        </div>
+        <div class="team-stat-card">
+          <div class="ts-icon">⚠️</div>
+          <div class="ts-num text-danger" id="ts-critical">0</div>
+          <div class="ts-lbl">Critical Gaps</div>
+        </div>
+        <div class="team-stat-card">
+          <div class="ts-icon">✅</div>
+          <div class="ts-num text-success" id="ts-ready">0</div>
+          <div class="ts-lbl">Role-Ready</div>
+        </div>
+        <div class="team-stat-card">
+          <div class="ts-icon">🧩</div>
+          <div class="ts-num" id="ts-skills-required">0</div>
+          <div class="ts-lbl">Skills Required</div>
+        </div>
+      </div>
+
+      <!-- Bar Chart -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <h6><i class="bi bi-bar-chart-fill text-primary"></i> Skill Coverage Across Team</h6>
+          <div class="chart-legend">
+            <div class="chart-legend-item">
+              <div class="legend-dot" style="background:#22c55e;"></div> ≥ 75% covered
+            </div>
+            <div class="chart-legend-item">
+              <div class="legend-dot" style="background:#eab308;"></div> 40–74% covered
+            </div>
+            <div class="chart-legend-item">
+              <div class="legend-dot" style="background:#ef4444;"></div> &lt; 40% covered
+            </div>
+          </div>
+        </div>
+        <div id="teamChartWrap">
+          <canvas id="teamSkillChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Members Table -->
+      <div class="team-table-card">
+        <div class="team-table-header">
+          <h6><i class="bi bi-table text-primary"></i> Team Members Ranked by Gap Severity</h6>
+          <span style="font-size:.78rem;color:var(--text-muted);">
+            Highest gap = most urgent upskilling needed
+          </span>
+        </div>
+        <div class="team-table-wrap">
+          <table class="team-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Member</th>
+                <th>Gap Score</th>
+                <th>Missing</th>
+                <th>Partial</th>
+                <th>Matched</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="team-table-body">
+              <tr>
+                <td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem;">
+                  No team data loaded
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Export Bar -->
+      <div class="export-bar">
+        <span><i class="bi bi-download me-1"></i>Export Team Report</span>
+        <button class="btn-export csv" onclick="exportCSV()">
+          <i class="bi bi-filetype-csv"></i> CSV
+        </button>
+        <button class="btn-export pdf" onclick="exportPDF()">
+          <i class="bi bi-file-earmark-pdf"></i> PDF
+        </button>
+      </div>
+
+    </div><!-- /team-results -->
+
+  </div><!-- /main-content -->
+
+</div><!-- /gap-page -->
+
+<!-- Toast -->
+<div class="tb-toast" id="tb-toast">
+  <span class="toast-icon" id="toast-icon">ℹ️</span>
+  <span class="toast-msg"  id="toast-msg">Message</span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   SKILL GAP DASHBOARD — TalentBeacon™
+═══════════════════════════════════════════════════════════════ */
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────
+const State = {
+  mode       : 'individual',    // 'individual' | 'team'
+  employees  : [],
+  roles      : [],
+  selectedEmp: null,
+  selectedRole: null,
+  lastResult : null,
+  teamChart  : null,
+};
+
+// ── Avatar Colors ──────────────────────────────────────────────
+const AVATAR_COLORS = [
+  ['#6366f1','#8b5cf6'],['#ec4899','#f43f5e'],['#14b8a6','#06b6d4'],
+  ['#f97316','#f59e0b'],['#22c55e','#10b981'],['#3b82f6','#6366f1'],
+];
+function avatarGrad(i){ const c=AVATAR_COLORS[i%AVATAR_COLORS.length]; return `linear-gradient(135deg,${c[0]},${c[1]})`; }
+function initials(name){ return (name||'??').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+
+// ── Toast ──────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg, icon='ℹ️', dur=3500) {
+  const t = document.getElementById('tb-toast');
+  document.getElementById('toast-icon').textContent = icon;
+  document.getElementById('toast-msg').textContent  = msg;
+  t.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ── Auth Guard ─────────────────────────────────────────────────
+function checkAuth() {
+  try {
+    const user = Auth.getUser();
+    if (!user || !['manager','admin'].includes(user.role)) {
+      document.getElementById('auth-guard').style.display = 'block';
+      return false;
+    }
+    document.getElementById('main-content').style.display = 'block';
+    return true;
+  } catch(e) {
+    document.getElementById('auth-guard').style.display = 'block';
+    return false;
+  }
+}
+
+// ── Mode Switch ────────────────────────────────────────────────
+function switchMode(mode) {
+  State.mode = mode;
+  document.getElementById('btn-individual').classList.toggle('active', mode === 'individual');
+  document.getElementById('btn-team').classList.toggle('active', mode === 'team');
+  document.getElementById('fg-employee').style.display   = mode === 'individual' ? '' : 'none';
+  document.getElementById('fg-department').style.display = mode === 'team'       ? '' : 'none';
+  hideResults();
+}
+
+function hideResults() {
+  document.getElementById('individual-results').classList.remove('show');
+  document.getElementById('team-results').classList.remove('show');
+  document.getElementById('placeholder-state').style.display = '';
+}
+
+// ── Load Roles ─────────────────────────────────────────────────
+async function loadRoles() {
+  try {
+    const token = localStorage.getItem('token') || '';
+    const res = await fetch('/api/roles', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Roles fetch failed');
+    const data = await res.json();
+    State.roles = data.roles || data || [];
+    const sel = document.getElementById('role-select');
+    sel.innerHTML = '<option value="">— Select Role —</option>';
+    State.roles.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id || r._id || r.role_id;
+      opt.textContent = r.title || r.name || r.role_name;
+      sel.appendChild(opt);
+    });
+  } catch(e) {
+    console.warn('Roles load failed, using mock data.', e);
+    loadMockRoles();
+  }
+}
+
+function loadMockRoles() {
+  const mockRoles = [
+    {id:'r1', title:'Senior Software Engineer'},
+    {id:'r2', title:'Product Manager'},
+    {id:'r3', title:'Data Scientist'},
+    {id:'r4', title:'UX Designer'},
+    {id:'r5', title:'DevOps Engineer'},
+    {id:'r6', title:'Machine Learning Engineer'},
+    {id:'r7', title:'Frontend Developer'},
+    {id:'r8', title:'Backend Developer'},
+  ];
+  State.roles = mockRoles;
+  const sel = document.getElementById('role-select');
+  sel.innerHTML = '<option value="">— Select Role —</option>';
+  mockRoles.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id; opt.textContent = r.title;
+    sel.appendChild(opt);
+  });
+}
+
+// ── Load Employees (search) ────────────────────────────────────
+async function loadEmployees() {
+  try {
+    const token = localStorage.getItem('token') || '';
+    const res = await fetch('/api/employees?per_page=100', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    State.employees = data.employees || data.data || data || [];
+  } catch(e) {
+    State.employees = generateMockEmployees();
+  }
+}
+
+function generateMockEmployees() {
+  const names = [
+    'Alice Chen','Bob Martinez','Carol Singh','David Kim','Emma Johnson',
+    'Frank Patel','Grace Liu','Henry Brown','Iris Nguyen','James Wilson',
+    'Kate Davis','Liam Anderson','Maya Thomas','Noah Jackson','Olivia White',
+  ];
+  const depts = ['Engineering','Product','Design','Data Science','Marketing'];
+  return names.map((n,i) => ({
+    id: `emp-${i+1}`, name: n,
+    department: depts[i % depts.length],
+    job_title: ['Dev','PM','Designer','Analyst','Marketer'][i%5],
+  }));
+}
+
+// ── Employee Search Dropdown ───────────────────────────────────
+function initEmpSearch() {
+  const input = document.getElementById('emp-search');
+  const dropdown = document.getElementById('emp-dropdown');
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q) { dropdown.classList.remove('show'); return; }
+    const matches = State.employees.filter(e =>
+      (e.name||'').toLowerCase().includes(q) ||
+      (e.department||'').toLowerCase().includes(q)
+    ).slice(0, 8);
+    renderEmpDropdown(matches);
+  });
+
+  input.addEventListener('focus', () => {
+    if (input.value.trim()) {
+      const q = input.value.trim().toLowerCase();
+      const matches = State.employees.filter(e =>
+        (e.name||'').toLowerCase().includes(q)
+      ).slice(0, 8);
+      renderEmpDropdown(matches);
+    }
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.emp-search-wrap')) {
+      dropdown.classList.remove('show');
+    }
+  });
+}
+
+function renderEmpDropdown(employees) {
+  const dd = document.getElementById('emp-dropdown');
+  if (!employees.length) {
+    dd.innerHTML = `<div class="emp-dropdown-item" style="cursor:default;color:var(--text-muted);">No employees found</div>`;
+    dd.classList.add('show');
+    return;
+  }
+  dd.innerHTML = employees.map((e, i) => `
+    <div class="emp-dropdown-item" onclick="selectEmployee(${JSON.stringify(e).replace(/"/g,'&quot;')}, ${i})">
+      <div class="emp-avatar" style="background:${avatarGrad(i)}">${initials(e.name)}</div>
+      <div>
+        <div>${e.name || 'Unknown'}</div>
+        <div class="emp-dept">${e.department || ''} ${e.job_title ? '· '+e.job_title : ''}</div>
+      </div>
+    </div>
+  `).join('');
+  dd.classList.add('show');
+}
+
+function selectEmployee(emp, i) {
+  State.selectedEmp = emp;
+  document.getElementById('emp-search').value = emp.name;
+  document.getElementById('emp-id-hidden').value = emp.id || emp._id || emp.employee_id;
+  document.getElementById('emp-dropdown').classList.remove('show');
+}
+
+// ── Run Analysis ───────────────────────────────────────────────
+async function runAnalysis() {
+  const roleId   = document.getElementById('role-select').value;
+  const roleName = document.getElementById('role-select').selectedOptions[0]?.text || '';
+
+  if (!roleId) { showToast('Please select a target role.', '⚠️'); return; }
+
+  if (State.mode === 'individual') {
+    const empId = document.getElementById('emp-id-hidden').value;
+    if (!empId && !State.selectedEmp) {
+      showToast('Please select an employee first.', '⚠️'); return;
+    }
+    await runIndividualAnalysis(empId, roleId, roleName);
+  } else {
+    const dept = document.getElementById('dept-select').value;
+    if (!dept) { showToast('Please select a department.', '⚠️'); return; }
+    await runTeamAnalysis(dept, roleId, roleName);
+  }
+}
+
+async function runIndividualAnalysis(empId, roleId, roleName) {
+  setBtnLoading(true);
+  try {
+    const token = localStorage.getItem('token') || '';
+    const res = await fetch('/api/skill-gap', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` },
+      body: JSON.stringify({ employee_id: empId, role_id: roleId })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderIndividualResults(data, roleName);
+  } catch(e) {
+    console.warn('API failed, using mock data:', e);
+    renderIndividualResults(mockIndividualData(State.selectedEmp, roleName), roleName);
+  } finally {
+    setBtnLoading(false);
+  }
+}
+
+async function runTeamAnalysis(dept, roleId, roleName) {
+  setBtnLoading(true);
+  try {
+    const token = localStorage.getItem('token') || '';
+    const res = await fetch('/api/skill-gap/team', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` },
+      body: JSON.stringify({ department: dept, role_id: roleId })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderTeamResults(data, dept, roleName);
+  } catch(e) {
+    console.warn('API failed, using mock team data:', e);
+    renderTeamResults(mockTeamData(dept, roleName), dept, roleName);
+  } finally {
+    setBtnLoading(false);
+  }
+}
+
+function setBtnLoading(on) {
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = on;
+  btn.innerHTML = on
+    ? `<span class="spinner-border"></span> Analyzing…`
+    : `<i class="bi bi-diagram-3"></i> Analyze Gap`;
+}
+
+// ── Individual Render ──────────────────────────────────────────
+function renderIndividualResults(data, roleName) {
+  State.lastResult = { type: 'individual', data, roleName };
+
+  const score      = data.gap_score ?? data.score ?? 62;
+  const empName    = data.employee_name || State.selectedEmp?.name || 'Employee';
+  const missing    = data.missing_skills || [];
+  const partial    = data.partial_skills || [];
+  const matched    = data.matched_skills || [];
+  const priority   = data.priority_gaps || missing.slice(0, 5);
+
+  // Score ring
+  const pct = Math.round(score);
+  document.getElementById('score-num').textContent = pct;
+  const circumference = 301.59;
+  const offset = circumference - (pct / 100) * circumference;
+  const fill = document.getElementById('ring-fill');
+  fill.style.strokeDashoffset = offset;
+  fill.style.stroke = pct >= 70 ? '#ef4444' : pct >= 40 ? '#f97316' : '#22c55e';
+
+  // Header
+  document.getElementById('emp-result-name').textContent = empName;
+  document.getElementById('emp-result-role').textContent = `Target: ${roleName}`;
+
+  // Severity badge
+  const sev = pct >= 70 ? 'critical' : pct >= 40 ? 'high' : pct >= 20 ? 'medium' : 'low';
+  const sevLabel = pct >= 70 ? '🔴 Critical Gap' : pct >= 40 ? '🟠 High Gap' : pct >= 20 ? '🟡 Medium Gap' : '🟢 Low Gap';
+  const badge = document.getElementById('severity-badge');
+  badge.className = `severity-badge ${sev}`;
+  badge.textContent = sevLabel;
+
+  // Stats
+  document.getElementById('stat-missing').textContent = missing.length;
+  document.getElementById('stat-partial').textContent = partial.length;
+  document.getElementById('stat-matched').textContent = matched.length;
+  document.getElementById('stat-total').textContent   = missing.length + partial.length + matched.length;
+  document.getElementById('missing-count').textContent = missing.length;
+  document.getElementById('partial-count').textContent = partial.length;
+  document.getElementById('matched-count').textContent = matched.length;
+
+  // Skills lists
+  document.getElementById('missing-skills-list').innerHTML =
+    missing.length ? missing.map(s => skillTagMissing(s)).join('') :
+    '<div class="text-success" style="font-size:.82rem;text-align:center;padding:.75rem;">🎉 No missing skills!</div>';
+
+  document.getElementById('partial-skills-list').innerHTML =
+    partial.length ? partial.map(s => skillTagPartial(s)).join('') :
+    '<div class="text-muted" style="font-size:.82rem;text-align:center;padding:.75rem;">No partial skills</div>';
+
+  document.getElementById('matched-skills-list').innerHTML =
+    matched.length ? matched.map(s => skillTagMatched(s)).join('') :
+    '<div class="text-muted" style="font-size:.82rem;text-align:center;padding:.75rem;">No matched skills</div>';
+
+  // Priority
+  document.getElementById('priority-list').innerHTML =
+    priority.length ? priority.map((s, i) => priorityItem(s, i)).join('') :
+    '<div class="text-muted" style="font-size:.82rem;text-align:center;padding:1rem;">No priority gaps</div>';
+
+  // Show section
+  document.getElementById('placeholder-state').style.display = 'none';
+  document.getElementById('team-results').classList.remove('show');
+  document.getElementById('individual-results').classList.add('show');
+  showToast(`Analysis complete for ${empName}`, '✅');
+}
+
+function skillTagMissing(s) {
+  const name = typeof s === 'string' ? s : s.name || s.skill_name;
+  const sev  = s.severity || 'high';
+  return `
+    <div class="skill-tag">
+      <span class="skill-icon">🔴</span>
+      <span class="skill-name">${name}</span>
+      <span class="severity-pill ${sev}">${sev}</span>
+    </div>`;
+}
+
+function skillTagPartial(s) {
+  const name = typeof s === 'string' ? s : s.name || s.skill_name;
+  const pct  = s.coverage_pct ?? s.match_pct ?? Math.round(30 + Math.random() * 50);
+  return `
+    <div class="skill-tag">
+      <span class="skill-icon">🟡</span>
+      <span class="skill-name">${name}</span>
+      <div class="partial-bar-wrap">
+        <div class="partial-bar"><div class="partial-bar-fill" style="width:${pct}%"></div></div>
+        <span class="partial-pct">${pct}%</span>
+      </div>
+    </div>`;
+}
+
+function skillTagMatched(s) {
+  const name = typeof s === 'string' ? s : s.name || s.skill_name;
+  return `
+    <div class="skill-tag">
+      <span class="skill-icon">🟢</span>
+      <span class="skill-name">${name}</span>
+      <i class="bi bi-check2-circle text-success"></i>
+    </div>`;
+}
+
+function priorityItem(s, i) {
+  const name = typeof s === 'string' ? s : s.name || s.skill_name;
+  const desc = s.reason || s.description || 'Required for role proficiency';
+  const sev  = s.priority || s.severity || (i === 0 ? 'critical' : i === 1 ? 'high' : i < 4 ? 'medium' : 'low');
+  return `
+    <div class="priority-item">
+      <div class="priority-num">${i+1}</div>
+      <div class="priority-info">
+        <div class="p-skill">${name}</div>
+        <div class="p-meta">${desc}</div>
+      </div>
+      <span class="priority-label ${sev}">${sev}</span>
+      <button class="btn-learn-this" onclick="goToLearning('${name}')">
+        <i class="bi bi-mortarboard"></i> Learn
+      </button>
+    </div>`;
+}
+
+// ── Team Render ────────────────────────────────────────────────
+function renderTeamResults(data, dept, roleName) {
+  State.lastResult = { type: 'team', data, dept, roleName };
+
+  const members  = data.members || data.employees || [];
+  const skills   = data.required_skills || data.skills || [];
+  const avgGap   = data.avg_gap_score ?? data.average_score ?? 0;
+  const critical = data.critical_count ?? members.filter(m => (m.gap_score||0) >= 70).length;
+  const ready    = data.ready_count    ?? members.filter(m => (m.gap_score||0) <  20).length;
+
+  // Stats
+  document.getElementById('ts-members').textContent       = members.length;
+  document.getElementById('ts-avg-gap').textContent       = Math.round(avgGap) + '%';
+  document.getElementById('ts-critical').textContent      = critical;
+  document.getElementById('ts-ready').textContent         = ready;
+  document.getElementById('ts-skills-required').textContent = skills.length;
+
+  // Chart
+  renderTeamChart(skills);
+
+  // Table
+  const sorted = [...members].sort((a,b) => (b.gap_score||0)-(a.gap_score||0));
+  document.getElementById('team-table-body').innerHTML =
+    sorted.map((m, i) => memberRow(m, i)).join('');
+
+  // Show
+  document.getElementById('placeholder-state').style.display = 'none';
+  document.getElementById('individual-results').classList.remove('show');
+  document.getElementById('team-results').classList.add('show');
+  showToast(`Team analysis complete for ${dept} → ${roleName}`, '✅');
+}
+
+function renderTeamChart(skills) {
+  const ctx = document.getElementById('teamSkillChart').getContext('2d');
+  if (State.teamChart) State.teamChart.destroy();
+
+  const labels   = skills.map(s => typeof s === 'string' ? s : s.name || s.skill_name);
+  const coverage = skills.map(s => s.coverage_pct ?? s.coverage ?? Math.round(20 + Math.random() * 75));
+
+  const colors = coverage.map(v => v >= 75 ? 'rgba(34,197,94,.75)' : v >= 40 ? 'rgba(234,179,8,.75)' : 'rgba(239,68,68,.75)');
+  const borders= coverage.map(v => v >= 75 ? '#22c55e' : v >= 40 ? '#eab308' : '#ef4444');
+
+  // Adjust canvas height dynamically
+  const wrap = document.getElementById('teamChartWrap');
+  wrap.style.height = Math.max(300, labels.length * 36) + 'px';
+  document.getElementById('teamSkillChart').style.height = wrap.style.height;
+
+  State.teamChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Team Coverage %',
+        data: coverage,
+        backgroundColor: colors,
+        borderColor: borders,
+        borderWidth: 1,
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.x}% of team have this skill`,
+          },
+          backgroundColor: '#1a1f2e',
+          borderColor: 'rgba(255,255,255,.1)',
+          borderWidth: 1,
+          titleColor: '#f1f5f9',
+          bodyColor: '#94a3b8',
+        },
+      },
+      scales: {
+        x: {
+          min: 0, max: 100,
+          ticks: {
+            color: '#64748b',
+            callback: v => v + '%',
+            font: { size: 11 },
+          },
+          grid: { color: 'rgba(255,255,255,.06)' },
+        },
+        y: {
+          ticks: { color: '#cbd5e1', font: { size: 12 } },
+          grid: { display: false },
+        },
+      },
+    }
+  });
+}
+
+function memberRow(m, i) {
+  const name    = m.name || m.employee_name || 'Member';
+  const dept    = m.department || '';
+  const gap     = m.gap_score ?? 0;
+  const missing = m.missing_count ?? m.missing ?? 0;
+  const partial = m.partial_count ?? m.partial ?? 0;
+  const matched = m.matched_count ?? m.matched ?? 0;
+  const rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n';
+  const fillColor = gap>=70?'#ef4444':gap>=40?'#f97316':gap>=20?'#eab308':'#22c55e';
+  const statusBadge = gap>=70
+    ? '<span class="severity-badge critical" style="font-size:.7rem;padding:.15rem .5rem;">Critical</span>'
+    : gap>=40
+    ? '<span class="severity-badge high" style="font-size:.7rem;padding:.15rem .5rem;">High</span>'
+    : gap>=20
+    ? '<span class="severity-badge medium" style="font-size:.7rem;padding:.15rem .5rem;">Medium</span>'
+    : '<span class="severity-badge low" style="font-size:.7rem;padding:.15rem .5rem;">Ready</span>';
+
+  return `
+    <tr>
+      <td><span class="rank-badge ${rankCls}">${i+1}</span></td>
+      <td>
+        <div class="member-cell">
+          <div class="member-avatar" style="background:${avatarGrad(i)}">${initials(name)}</div>
+          <div>
+            <div class="member-name">${name}</div>
+            <div class="member-dept">${dept}</div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div class="gap-progress-wrap">
+          <div class="gap-progress-bar">
+            <div class="gap-progress-fill" style="width:${gap}%;background:${fillColor};"></div>
+          </div>
+          <span class="gap-pct-lbl" style="color:${fillColor}">${gap}%</span>
+        </div>
+      </td>
+      <td><span class="text-danger fw-bold">${missing}</span></td>
+      <td><span class="text-warning fw-bold">${partial}</span></td>
+      <td><span class="text-success fw-bold">${matched}</span></td>
+      <td>${statusBadge}</td>
+      <td>
+        <button class="btn-learn-this" onclick="analyzeIndividualFromTeam(${JSON.stringify(m).replace(/"/g,'&quot;')})">
+          <i class="bi bi-person-lines-fill"></i> Details
+        </button>
+      </td>
+    </tr>`;
+}
+
+function analyzeIndividualFromTeam(member) {
+  switchMode('individual');
+  const emp = { id: member.id || member.employee_id, name: member.name || member.employee_name, department: member.department };
+  State.selectedEmp = emp;
+  document.getElementById('emp-search').value = emp.name || '';
+  document.getElementById('emp-id-hidden').value = emp.id || '';
+  showToast(`Switched to individual view for ${emp.name}`, 'ℹ️');
+}
+
+// ── Export ─────────────────────────────────────────────────────
+function exportCSV() {
+  if (!State.lastResult) { showToast('Run an analysis first.', '⚠️'); return; }
+  let csv = '';
+  const { type, data, roleName } = State.lastResult;
+
+  if (type === 'individual') {
+    const empName = data.employee_name || State.selectedEmp?.name || 'Employee';
+    csv  = `Skill Gap Report — Individual\n`;
+    csv += `Employee,${empName}\nTarget Role,${roleName}\nGap Score,${data.gap_score||0}%\n\n`;
+    csv += `Skill Type,Skill Name,Severity/Coverage\n`;
+    (data.missing_skills||[]).forEach(s => {
+      const n = typeof s==='string'?s:s.name; csv += `Missing,"${n}",${s.severity||'high'}\n`;
+    });
+    (data.partial_skills||[]).forEach(s => {
+      const n = typeof s==='string'?s:s.name; csv += `Partial,"${n}",${s.coverage_pct||50}%\n`;
+    });
+    (data.matched_skills||[]).forEach(s => {
+      const n = typeof s==='string'?s:s.name; csv += `Matched,"${n}",100%\n`;
+    });
+  } else {
+    const { dept } = State.lastResult;
+    csv  = `Skill Gap Report — Team\n`;
+    csv += `Department,${dept}\nTarget Role,${roleName}\nAvg Gap Score,${data.avg_gap_score||0}%\n\n`;
+    csv += `Rank,Name,Department,Gap Score,Missing,Partial,Matched\n`;
+    const sorted = [...(data.members||[])].sort((a,b)=>(b.gap_score||0)-(a.gap_score||0));
+    sorted.forEach((m,i) => {
+      csv += `${i+1},"${m.name||''}","${m.department||''}",${m.gap_score||0}%,${m.missing_count||0},${m.partial_count||0},${m.matched_count||0}\n`;
+    });
+  }
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `skill-gap-${type}-${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV exported successfully!', '✅');
+}
+
+function exportPDF() {
+  if (!State.lastResult) { showToast('Run an analysis first.', '⚠️'); return; }
+  showToast('Preparing PDF… (use browser print on this page)', 'ℹ️', 4000);
+  setTimeout(() => window.print(), 600);
+}
+
+function goToLearning(skill) {
+  const empId = State.selectedEmp?.id || '';
+  const skillParam = skill ? `&skill=${encodeURIComponent(skill)}` : '';
+  window.location.href = `/employee/learning?from=skill-gap&emp=${empId}${skillParam}`;
+}
+
+// ── Mock Data ──────────────────────────────────────────────────
+function mockIndividualData(emp, roleName) {
+  const allSkills = [
+    'Python','Machine Learning','SQL','TensorFlow','Docker','Kubernetes',
+    'React.js','Node.js','AWS','Git','Agile','Communication','Data Analysis',
+    'System Design','CI/CD','TypeScript','GraphQL','Redis',
+  ];
+  shuffle(allSkills);
+  const score   = Math.round(35 + Math.random() * 50);
+  const missingN = Math.round(allSkills.length * .3);
+  const partialN = Math.round(allSkills.length * .25);
+  const matchedN = allSkills.length - missingN - partialN;
+  const severities = ['critical','critical','high','high','medium','medium','low'];
+  const priorities  = ['critical','high','high','medium','medium'];
+  return {
+    employee_name  : emp?.name || 'Demo Employee',
+    gap_score      : score,
+    missing_skills : allSkills.slice(0, missingN).map((s,i) => ({
+      name: s, severity: severities[i % severities.length]
+    })),
+    partial_skills : allSkills.slice(missingN, missingN+partialN).map(s => ({
+      name: s, coverage_pct: Math.round(30 + Math.random()*50)
+    })),
+    matched_skills : allSkills.slice(missingN+partialN).map(s => ({ name: s })),
+    priority_gaps  : allSkills.slice(0, 5).map((s,i) => ({
+      name: s,
+      reason: ['Required for senior-level architecture decisions','Core to daily workflow in this role','Used in 80% of role tasks','Important for team collaboration','Enables role advancement'][i],
+      priority: priorities[i],
+    })),
+  };
+}
+
+function mockTeamData(dept, roleName) {
+  const memberNames = State.employees.filter(e => !e.department || e.department === dept || Math.random() > .5).slice(0,8);
+  const skillPool = ['Python','SQL','React','Docker','AWS','Communication','Agile','TensorFlow','Kubernetes','Git','TypeScript'];
+  const members = memberNames.map((e, i) => {
+    const gap = Math.round(10 + Math.random() * 75);
+    const missing = Math.round(gap / 20);
+    const partial = Math.round(gap / 30);
+    const matched = skillPool.length - missing - partial;
+    return {
+      id: e.id, name: e.name, department: e.department || dept,
+      gap_score: gap, missing_count: missing, partial_count: partial, matched_count: Math.max(0,matched),
+    };
+  });
+  const avgGap = Math.round(members.reduce((s,m)=>s+m.gap_score,0) / members.length);
+  return {
+    members,
+    avg_gap_score: avgGap,
+    required_skills: skillPool.map(s => ({
+      name: s, coverage_pct: Math.round(20 + Math.random() * 75)
+    })),
+    critical_count: members.filter(m => m.gap_score >= 70).length,
+    ready_count   : members.filter(m => m.gap_score < 20).length,
+  };
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ── Init ───────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!checkAuth()) return;
+  await Promise.all([loadRoles(), loadEmployees()]);
+  initEmpSearch();
+});
+</script>
+{% endblock %}

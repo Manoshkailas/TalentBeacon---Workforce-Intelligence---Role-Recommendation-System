@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}TalentBeacon™{% endblock %} – Employee Intelligence Platform</title>
+  <meta name="description" content="TalentBeacon™ – AI-powered employee recommendation and skill intelligence platform"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>"/>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <!-- TalentBeacon Styles -->
+  <link href="/static/css/main.css" rel="stylesheet"/>
+
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+{% block body %}
+<!-- Authenticated Layout with Sidebar -->
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🎯</div>
+      <div>
+        <div class="brand-name">Talent<span>Beacon</span>™</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:1px">Skill Intelligence Platform</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" id="sidebar-nav">
+      <!-- Nav populated by JS based on role -->
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-profile">
+        <div class="user-avatar" id="sidebar-avatar">--</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-user-name">Loading...</div>
+          <div class="user-role" id="sidebar-user-role">---</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="logout-btn" title="Logout">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- Top Header -->
+    <header class="top-header">
+      <div>
+        <div class="header-title">{% block page_title %}Dashboard{% endblock %}</div>
+        <div class="header-subtitle">{% block page_subtitle %}{% endblock %}</div>
+      </div>
+      <div class="header-actions">
+        {% block header_actions %}{% endblock %}
+        <button class="btn btn-ghost btn-sm" onclick="window.location.reload()" title="Refresh">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main class="page-content">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+</div>
+{% endblock %}
+
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<!-- Plotly -->
+<script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+<!-- TalentBeacon Core JS -->
+<script src="/static/js/main.js"></script>
+
+<script>
+// ── Sidebar Nav Config ──────────────────────────────────────
+const NAV_CONFIG = {
+  admin: [
+    { label: 'Overview', items: [
+      { icon: 'bi-grid-1x2-fill', text: 'Dashboard',     href: '/admin/dashboard' },
+      { icon: 'bi-people-fill',   text: 'Users',          href: '/admin/users' },
+      { icon: 'bi-stars',         text: 'Skills Catalog', href: '/admin/skills' },
+    ]},
+    { label: 'Analytics', items: [
+      { icon: 'bi-graph-up-arrow',    text: 'Workforce Analytics', href: '/manager/workforce-readiness' },
+      { icon: 'bi-diagram-3-fill',    text: 'Talent Discovery',    href: '/manager/talent-discovery' },
+    ]},
+  ],
+  manager: [
+    { label: 'Overview', items: [
+      { icon: 'bi-search-heart',   text: 'Talent Discovery',     href: '/manager/talent-discovery' },
+      { icon: 'bi-trophy-fill',    text: 'Match Results',        href: '/manager/match-results' },
+      { icon: 'bi-clipboard2-data-fill', text: 'Skill Gap',      href: '/manager/skill-gap' },
+    ]},
+    { label: 'Workforce', items: [
+      { icon: 'bi-speedometer2',   text: 'Readiness Scores',     href: '/manager/workforce-readiness' },
+      { icon: 'bi-kanban-fill',    text: 'Project Matching',     href: '/manager/project-recommendations' },
+      { icon: 'bi-file-earmark-bar-graph-fill', text: 'Reports', href: '/manager/reports' },
+    ]},
+  ],
+  employee: [
+    { label: 'My Profile', items: [
+      { icon: 'bi-person-badge-fill',  text: 'Career Dashboard', href: '/employee/career-dashboard' },
+      { icon: 'bi-lightning-fill',     text: 'My Skills',        href: '/employee/my-skills' },
+      { icon: 'bi-mortarboard-fill',   text: 'Learning',         href: '/employee/learning' },
+    ]},
+  ],
+};
+
+function buildSidebar(role) {
+  const nav = document.getElementById('sidebar-nav');
+  if (!nav) return;
+  const sections = NAV_CONFIG[role] || [];
+  nav.innerHTML = '';
+  sections.forEach(section => {
+    const label = document.createElement('div');
+    label.className = 'nav-section-label';
+    label.textContent = section.label;
+    nav.appendChild(label);
+    section.items.forEach(item => {
+      const a = document.createElement('div');
+      a.className = 'nav-item';
+      a.dataset.href = item.href;
+      a.innerHTML = `<i class="bi ${item.icon}"></i> <span>${item.text}</span>`;
+      if (window.location.pathname.startsWith(item.href)) a.classList.add('active');
+      a.addEventListener('click', () => window.location.href = item.href);
+      nav.appendChild(a);
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const user = Auth.getUser();
+  if (user) {
+    buildSidebar(user.role);
+    Sidebar.renderUserProfile();
+  }
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.addEventListener('click', logout);
+
+  // Animate stat cards
+  document.querySelectorAll('[data-count]').forEach(el => {
+    animateNumber(el, parseInt(el.dataset.count));
+  });
+});
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,1063 @@
+{% extends "base.html" %}
+
+{% block title %}My Career Dashboard{% endblock %}
+
+{% block page_title %}Career Dashboard{% endblock %}
+{% block page_subtitle %}Your skill intelligence profile{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Career Dashboard – Scoped Styles ─────────────────────── */
+
+  /* Hero Banner */
+  .career-hero {
+    background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(6,182,212,0.08) 50%, rgba(139,92,246,0.12) 100%);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: var(--radius-lg);
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .career-hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 250px; height: 250px;
+    background: radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .career-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: 40%;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-avatar {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 26px; font-weight: 800;
+    color: white;
+    flex-shrink: 0;
+    border: 3px solid rgba(99,102,241,0.4);
+    box-shadow: 0 0 24px rgba(99,102,241,0.3);
+  }
+  .hero-greeting {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .hero-name {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+  .hero-meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .hero-meta-item {
+    display: flex; align-items: center; gap: 5px;
+  }
+  .hero-meta-item i { color: var(--primary-light); font-size: 13px; }
+
+  /* ── Stat Cards Row ─────────────────────────────────────── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px)  { .stats-grid { grid-template-columns: 1fr; } }
+
+  /* ── Two-column main layout ────────────────────────────── */
+  .career-layout {
+    display: grid;
+    grid-template-columns: 60% 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) { .career-layout { grid-template-columns: 1fr; } }
+
+  /* ── Profile Info Card ──────────────────────────────────── */
+  .profile-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .profile-meta-item {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: var(--transition);
+  }
+  .profile-meta-item:hover { border-color: var(--border-glow); }
+  .profile-meta-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 4px; }
+  .profile-meta-value { font-size: 14px; color: var(--text-primary); font-weight: 600; }
+
+  /* ── Skills Cloud ───────────────────────────────────────── */
+  .skills-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 0;
+  }
+  .skill-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid;
+    cursor: default;
+    transition: var(--transition);
+  }
+  .skill-pill:hover { transform: translateY(-2px); filter: brightness(1.15); }
+  .skill-pill.expert       { border-color: rgba(139,92,246,0.4);  color: #A78BFA; background: rgba(139,92,246,0.1);  }
+  .skill-pill.advanced     { border-color: rgba(16,185,129,0.4);  color: #34D399; background: rgba(16,185,129,0.1);  }
+  .skill-pill.intermediate { border-color: rgba(245,158,11,0.4);  color: #FCD34D; background: rgba(245,158,11,0.1);  }
+  .skill-pill.beginner     { border-color: rgba(100,116,139,0.4); color: #94A3B8; background: rgba(100,116,139,0.08); }
+  .skill-pill-level {
+    font-size: 10px;
+    opacity: 0.75;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+
+  /* Skills legend */
+  .skills-legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--text-muted);
+  }
+  .legend-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+
+  /* ── Career Path Section ────────────────────────────────── */
+  .role-select-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .role-select-row .form-select { flex: 1; }
+
+  /* Potential roles list */
+  .potential-role-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: var(--transition);
+    margin-bottom: 10px;
+  }
+  .potential-role-card:hover { border-color: var(--border-glow); transform: translateX(3px); }
+  .role-readiness-ring {
+    width: 52px; height: 52px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .role-readiness-ring svg { transform: rotate(-90deg); }
+  .role-readiness-text {
+    position: absolute;
+    inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 11px; font-weight: 800;
+  }
+  .role-info { flex: 1; min-width: 0; }
+  .role-title { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+  .role-timeline { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+  /* Career roadmap timeline */
+  .roadmap-timeline {
+    position: relative;
+    padding-left: 32px;
+  }
+  .roadmap-timeline::before {
+    content: '';
+    position: absolute;
+    left: 11px; top: 12px; bottom: 12px;
+    width: 2px;
+    background: linear-gradient(180deg, var(--primary) 0%, var(--accent) 100%);
+    opacity: 0.4;
+    border-radius: 1px;
+  }
+  .roadmap-step {
+    position: relative;
+    margin-bottom: 20px;
+  }
+  .roadmap-step:last-child { margin-bottom: 0; }
+  .roadmap-dot {
+    position: absolute;
+    left: -26px; top: 4px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 2px solid var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    transition: var(--transition);
+  }
+  .roadmap-dot.done  { background: var(--success); border-color: var(--success); }
+  .roadmap-dot.active { background: var(--primary); border-color: var(--primary); box-shadow: 0 0 12px rgba(99,102,241,0.5); }
+  .roadmap-dot.future { border-color: var(--text-muted); }
+  .roadmap-dot-inner { width: 5px; height: 5px; border-radius: 50%; background: white; }
+  .roadmap-phase-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 3px; }
+  .roadmap-phase-title { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+  .roadmap-phase-desc  { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; }
+  .roadmap-phase-duration { font-size: 11px; color: var(--accent); margin-top: 6px; font-weight: 600; }
+
+  /* ── Readiness Meter ────────────────────────────────────── */
+  .readiness-score-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0 10px;
+  }
+  .readiness-label {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 16px; font-weight: 800;
+    margin-top: 12px;
+    letter-spacing: 0.5px;
+  }
+  .readiness-desc { font-size: 12px; color: var(--text-muted); margin-top: 4px; text-align: center; }
+  .component-bar-row {
+    margin-bottom: 12px;
+  }
+  .component-bar-label {
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: var(--text-secondary);
+    margin-bottom: 5px;
+  }
+  .component-bar-label span:last-child { font-weight: 700; color: var(--text-primary); }
+
+  /* ── AI Output Box ──────────────────────────────────────── */
+  .ai-response-box {
+    background: linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(6,182,212,0.04) 100%);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: var(--radius);
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ai-response-box::before {
+    content: '✦ AI';
+    position: absolute;
+    top: 10px; right: 14px;
+    font-size: 10px; font-weight: 700;
+    color: var(--primary-light);
+    opacity: 0.6;
+    letter-spacing: 1px;
+  }
+
+  /* Typing dots */
+  .ai-typing {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 0;
+  }
+  .ai-typing span {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--primary-light);
+    animation: typingDot 1.2s infinite;
+  }
+  .ai-typing span:nth-child(2) { animation-delay: 0.2s; }
+  .ai-typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingDot {
+    0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+    40%           { transform: scale(1.1); opacity: 1; }
+  }
+
+  /* ── Section dividers ──────────────────────────────────── */
+  .section-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(99,102,241,0.12);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 11px; font-weight: 700;
+    color: var(--primary-light);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  /* ── Placeholder shimmer ────────────────────────────────── */
+  .shimmer {
+    background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-glass) 50%, var(--bg-elevated) 75%);
+    background-size: 400% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+    height: 16px;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* Radar chart container */
+  #radarChart { max-height: 260px; }
+
+  /* Empty placeholder for AI output */
+  .ai-placeholder {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 32px 16px; text-align: center;
+    gap: 10px;
+  }
+  .ai-placeholder-icon { font-size: 36px; opacity: 0.25; }
+  .ai-placeholder-text { font-size: 13px; color: var(--text-muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════════════
+     HERO BANNER
+════════════════════════════════════════════════════ -->
+<div class="career-hero animate-in">
+  <div class="flex gap-4" style="align-items:center; position:relative; z-index:1;">
+    <div class="hero-avatar" id="heroAvatar" style="background: linear-gradient(135deg,#06B6D4,#3B82F6)">--</div>
+    <div style="flex:1">
+      <div class="hero-greeting">Welcome back 👋</div>
+      <div class="hero-name" id="heroName">Loading...</div>
+      <div class="hero-meta">
+        <span class="hero-meta-item"><i class="bi bi-building"></i><span id="heroDept">—</span></span>
+        <span class="hero-meta-item"><i class="bi bi-briefcase-fill"></i><span id="heroDesig">—</span></span>
+        <span class="hero-meta-item"><i class="bi bi-clock-history"></i><span id="heroExp">—</span></span>
+      </div>
+    </div>
+    <div style="text-align:right; position:relative; z-index:1;">
+      <span class="ai-badge" style="margin-bottom:8px; display:inline-flex;">Skill Intelligence</span>
+      <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Last updated today</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     TOP ROW – 4 STAT CARDS
+════════════════════════════════════════════════════ -->
+<div class="stats-grid">
+
+  <!-- Total Skills -->
+  <div class="stat-card indigo animate-in">
+    <div class="stat-icon indigo">
+      <i class="bi bi-lightning-fill"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="statTotalSkills" data-count="0">0</div>
+      <div class="stat-label">Total Skills</div>
+      <div class="stat-trend up" id="statSkillsTrend">
+        <i class="bi bi-arrow-up-short"></i> Proficiency profile
+      </div>
+    </div>
+  </div>
+
+  <!-- Certifications -->
+  <div class="stat-card purple animate-in animate-in-delay-1">
+    <div class="stat-icon purple">
+      <i class="bi bi-award-fill"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="statCerts" data-count="0">0</div>
+      <div class="stat-label">Certifications</div>
+      <div class="stat-trend up" id="statCertsTrend">
+        <i class="bi bi-patch-check-fill"></i> Verified credentials
+      </div>
+    </div>
+  </div>
+
+  <!-- Completed Courses -->
+  <div class="stat-card cyan animate-in animate-in-delay-2">
+    <div class="stat-icon cyan">
+      <i class="bi bi-mortarboard-fill"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="statCourses" data-count="0">0</div>
+      <div class="stat-label">Completed Courses</div>
+      <div class="stat-trend up" id="statCoursesTrend">
+        <i class="bi bi-graph-up-arrow"></i> Learning journey
+      </div>
+    </div>
+  </div>
+
+  <!-- Performance Rating -->
+  <div class="stat-card green animate-in animate-in-delay-3">
+    <div class="stat-icon green">
+      <i class="bi bi-star-fill"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="statPerf">—</div>
+      <div class="stat-label">Performance Rating</div>
+      <div class="stat-trend" id="statPerfTrend">
+        <i class="bi bi-activity"></i> Current cycle
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     MAIN TWO-COLUMN LAYOUT
+════════════════════════════════════════════════════ -->
+<div class="career-layout">
+
+  <!-- ════════════════════════════════
+       LEFT COLUMN – PROFILE + SKILLS
+  ════════════════════════════════ -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+
+    <!-- ── Employee Info Card ──────────────────────────────── -->
+    <div class="card animate-in">
+      <div class="card-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <i class="bi bi-person-badge-fill" style="color:var(--primary-light); font-size:18px;"></i>
+          <span class="card-title">Employee Profile</span>
+        </div>
+        <span class="badge badge-primary" id="employeeIdBadge">ID: —</span>
+      </div>
+      <div class="card-body">
+        <div class="profile-meta-grid" id="profileMetaGrid">
+          <!-- Filled by JS -->
+          <div class="profile-meta-item"><div class="shimmer" style="width:60%; margin-bottom:6px;"></div><div class="shimmer" style="width:80%;"></div></div>
+          <div class="profile-meta-item"><div class="shimmer" style="width:60%; margin-bottom:6px;"></div><div class="shimmer" style="width:80%;"></div></div>
+          <div class="profile-meta-item"><div class="shimmer" style="width:60%; margin-bottom:6px;"></div><div class="shimmer" style="width:80%;"></div></div>
+          <div class="profile-meta-item"><div class="shimmer" style="width:60%; margin-bottom:6px;"></div><div class="shimmer" style="width:80%;"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Skills Cloud ────────────────────────────────────── -->
+    <div class="card animate-in">
+      <div class="card-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <i class="bi bi-tags-fill" style="color:var(--accent); font-size:18px;"></i>
+          <span class="card-title">Skills Cloud</span>
+        </div>
+        <span class="badge badge-info" id="skillCountBadge">0 skills</span>
+      </div>
+      <div class="card-body">
+        <div class="skills-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#A78BFA;"></div> Expert</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#34D399;"></div> Advanced</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#FCD34D;"></div> Intermediate</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#94A3B8;"></div> Beginner</div>
+        </div>
+        <div class="skills-cloud" id="skillsCloud">
+          <!-- Shimmer placeholders -->
+          <div class="shimmer" style="width:80px; height:26px; border-radius:20px;"></div>
+          <div class="shimmer" style="width:100px; height:26px; border-radius:20px;"></div>
+          <div class="shimmer" style="width:70px; height:26px; border-radius:20px;"></div>
+          <div class="shimmer" style="width:110px; height:26px; border-radius:20px;"></div>
+          <div class="shimmer" style="width:90px; height:26px; border-radius:20px;"></div>
+          <div class="shimmer" style="width:85px; height:26px; border-radius:20px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Radar / Spider Chart ────────────────────────────── -->
+    <div class="card animate-in">
+      <div class="card-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <i class="bi bi-diagram-3-fill" style="color:var(--secondary); font-size:18px;"></i>
+          <span class="card-title">Skill Levels by Category</span>
+        </div>
+        <span class="ai-badge">AI Analysis</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-container" style="height:260px; display:flex; align-items:center; justify-content:center;">
+          <canvas id="radarChart"></canvas>
+        </div>
+        <div id="radarLegend" style="display:flex; flex-wrap:wrap; gap:12px; margin-top:14px; justify-content:center;"></div>
+      </div>
+    </div>
+
+  </div><!-- /left column -->
+
+  <!-- ════════════════════════════════
+       RIGHT COLUMN – CAREER PATH + READINESS
+  ════════════════════════════════ -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+
+    <!-- ── Career Path Section ─────────────────────────────── -->
+    <div class="card animate-in">
+      <div class="card-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <i class="bi bi-map-fill" style="color:var(--warning); font-size:18px;"></i>
+          <span class="card-title">AI Career Path</span>
+        </div>
+        <span class="ai-badge">Gemini AI</span>
+      </div>
+      <div class="card-body">
+
+        <!-- Target Role Selector -->
+        <div class="section-chip"><i class="bi bi-crosshair"></i> Target Role</div>
+        <div class="role-select-row mb-3">
+          <select class="form-select" id="careerTargetRole">
+            <option value="">— Select a target role —</option>
+          </select>
+          <button class="btn btn-primary btn-sm" id="getCareerPathBtn" onclick="getCareerPath()" style="white-space:nowrap; flex-shrink:0;">
+            <i class="bi bi-stars"></i> Get AI Path
+          </button>
+        </div>
+
+        <!-- AI Career Path Output -->
+        <div id="careerPathOutput">
+          <div class="ai-placeholder">
+            <div class="ai-placeholder-icon">🗺️</div>
+            <div class="ai-placeholder-text">Select a target role and click "Get AI Path" to see your personalized career roadmap generated by Gemini AI.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Readiness Meter ──────────────────────────────────── -->
+    <div class="card animate-in">
+      <div class="card-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <i class="bi bi-speedometer2" style="color:var(--success); font-size:18px;"></i>
+          <span class="card-title">Role Readiness Meter</span>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <!-- Role Selector -->
+        <div class="section-chip"><i class="bi bi-trophy-fill"></i> Select Role to Check</div>
+        <div class="role-select-row mb-3">
+          <select class="form-select" id="readinessRole">
+            <option value="">— Choose a role —</option>
+          </select>
+          <button class="btn btn-outline btn-sm" id="checkReadinessBtn" onclick="checkReadiness()" style="white-space:nowrap; flex-shrink:0;">
+            <i class="bi bi-bar-chart-fill"></i> Check
+          </button>
+        </div>
+
+        <!-- Score Ring -->
+        <div id="readinessOutput">
+          <div class="ai-placeholder">
+            <div class="ai-placeholder-icon">🎯</div>
+            <div class="ai-placeholder-text">Choose a role above to instantly see your readiness score and component breakdown.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /right column -->
+
+</div><!-- /career-layout -->
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+/* ═══════════════════════════════════════════════════════════
+   CAREER DASHBOARD – JavaScript
+   Auth check → Load profile → Load roles → Render everything
+════════════════════════════════════════════════════════════ */
+
+let EMPLOYEE_ID = null;
+let ALL_ROLES   = [];
+let PROFILE     = null;
+let radarChartInstance = null;
+
+/* ── 1. AUTH CHECK + BOOT ──────────────────────────────── */
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!requireAuth()) return;
+
+  const user = Auth.getUser();
+  EMPLOYEE_ID = user?.employee_id || Auth.getEmployeeId();
+
+  if (!EMPLOYEE_ID) {
+    Toast.error('Could not identify employee account. Please log in again.');
+    setTimeout(() => Auth.clear() || (window.location.href = '/login'), 2000);
+    return;
+  }
+
+  // Load in parallel
+  await Promise.all([
+    loadProfile(),
+    loadRoles(),
+  ]);
+});
+
+/* ── 2. LOAD EMPLOYEE PROFILE ───────────────────────────── */
+async function loadProfile() {
+  try {
+    const data = await API.get(`/employees/${EMPLOYEE_ID}`);
+    PROFILE = data;
+    renderHero(data);
+    renderStatCards(data);
+    renderProfileMeta(data);
+    renderSkillsCloud(data.skills || []);
+    renderRadarChart(data.skills || []);
+  } catch (err) {
+    Toast.error('Failed to load profile: ' + (err.message || 'Unknown error'));
+    console.error(err);
+  }
+}
+
+/* ── 3. RENDER HERO BANNER ──────────────────────────────── */
+function renderHero(emp) {
+  const name = emp.name || emp.employee_name || '—';
+  document.getElementById('heroName').textContent = name;
+  document.getElementById('heroDept').textContent  = emp.department || '—';
+  document.getElementById('heroDesig').textContent  = emp.designation || emp.current_role || '—';
+  document.getElementById('heroExp').textContent  = emp.experience
+    ? `${emp.experience} yrs experience`
+    : (emp.years_experience ? `${emp.years_experience} yrs experience` : '—');
+
+  const avatar = document.getElementById('heroAvatar');
+  avatar.textContent  = avatarInitials(name);
+  avatar.style.background = avatarColor(name);
+}
+
+/* ── 4. RENDER STAT CARDS ───────────────────────────────── */
+function renderStatCards(emp) {
+  const skills  = emp.skills || [];
+  const certs   = emp.certifications || emp.certification_count || 0;
+  const courses  = emp.completed_courses || emp.course_count || 0;
+  const perf    = emp.performance_rating || emp.performance_score;
+
+  // Animate numbers
+  const skillEl = document.getElementById('statTotalSkills');
+  skillEl.dataset.count = skills.length;
+  animateNumber(skillEl, skills.length);
+
+  const certEl = document.getElementById('statCerts');
+  certEl.dataset.count = certs;
+  animateNumber(certEl, typeof certs === 'number' ? certs : 0);
+
+  const courseEl = document.getElementById('statCourses');
+  courseEl.dataset.count = courses;
+  animateNumber(courseEl, typeof courses === 'number' ? courses : 0);
+
+  // Performance rating (may be string like "4.2 / 5")
+  const perfEl = document.getElementById('statPerf');
+  if (perf !== undefined && perf !== null) {
+    perfEl.textContent = typeof perf === 'number' ? perf.toFixed(1) : perf;
+    const trend = document.getElementById('statPerfTrend');
+    const score = parseFloat(perf);
+    if (!isNaN(score)) {
+      trend.className = 'stat-trend ' + (score >= 4 ? 'up' : score >= 2.5 ? '' : 'down');
+      trend.innerHTML = `<i class="bi bi-${score >= 4 ? 'arrow-up-short' : score >= 2.5 ? 'dash' : 'arrow-down-short'}"></i> ${score >= 4 ? 'Excellent' : score >= 3 ? 'Good' : score >= 2 ? 'Average' : 'Needs Improvement'}`;
+    }
+  } else {
+    perfEl.textContent = 'N/A';
+  }
+}
+
+/* ── 5. RENDER PROFILE META GRID ────────────────────────── */
+function renderProfileMeta(emp) {
+  document.getElementById('employeeIdBadge').textContent = `ID: ${emp.employee_id || EMPLOYEE_ID}`;
+
+  const fields = [
+    { label: 'Full Name',    value: emp.name || emp.employee_name || '—',   icon: 'bi-person-fill' },
+    { label: 'Department',   value: emp.department || '—',                  icon: 'bi-building' },
+    { label: 'Designation',  value: emp.designation || emp.current_role || '—', icon: 'bi-briefcase-fill' },
+    { label: 'Experience',   value: emp.experience ? `${emp.experience} years` : (emp.years_experience ? `${emp.years_experience} years` : '—'), icon: 'bi-clock-history' },
+    { label: 'Email',        value: emp.email || '—',                       icon: 'bi-envelope-fill' },
+    { label: 'Location',     value: emp.location || emp.city || '—',        icon: 'bi-geo-alt-fill' },
+    { label: 'Team',         value: emp.team || emp.group || '—',           icon: 'bi-people-fill' },
+    { label: 'Member Since', value: emp.join_date ? new Date(emp.join_date).toLocaleDateString('en-IN', {year:'numeric',month:'short'}) : (emp.joining_year || '—'), icon: 'bi-calendar2-check-fill' },
+  ];
+
+  const grid = document.getElementById('profileMetaGrid');
+  grid.innerHTML = fields.map(f => `
+    <div class="profile-meta-item">
+      <div class="profile-meta-label"><i class="bi ${f.icon}" style="margin-right:4px; opacity:0.6;"></i>${f.label}</div>
+      <div class="profile-meta-value">${f.value}</div>
+    </div>
+  `).join('');
+}
+
+/* ── 6. RENDER SKILLS CLOUD ─────────────────────────────── */
+function renderSkillsCloud(skills) {
+  const cloud = document.getElementById('skillsCloud');
+  const badge = document.getElementById('skillCountBadge');
+
+  badge.textContent = `${skills.length} skill${skills.length !== 1 ? 's' : ''}`;
+
+  if (!skills.length) {
+    cloud.innerHTML = `<div class="empty-state" style="padding:20px;"><div class="empty-state-icon">🧩</div><div class="empty-state-title">No skills recorded yet</div></div>`;
+    return;
+  }
+
+  // Sort by proficiency level priority
+  const order = { expert: 0, advanced: 1, intermediate: 2, beginner: 3 };
+  const sorted = [...skills].sort((a, b) => {
+    const la = (a.proficiency_level || a.level || 'beginner').toLowerCase();
+    const lb = (b.proficiency_level || b.level || 'beginner').toLowerCase();
+    return (order[la] ?? 3) - (order[lb] ?? 3);
+  });
+
+  cloud.innerHTML = sorted.map(skill => {
+    const name  = skill.skill_name || skill.name || skill;
+    const level = (skill.proficiency_level || skill.level || 'beginner').toLowerCase();
+    const levelShort = { expert: 'Expert', advanced: 'Adv', intermediate: 'Int', beginner: 'Beg' }[level] || level;
+    return `
+      <span class="skill-pill ${level}" title="${name} – ${level}">
+        ${name}
+        <span class="skill-pill-level">${levelShort}</span>
+      </span>`;
+  }).join('');
+}
+
+/* ── 7. RADAR CHART (Chart.js) ──────────────────────────── */
+function renderRadarChart(skills) {
+  if (!skills.length) return;
+
+  // Group skills by category, average proficiency score
+  const categoryMap = {};
+  const profScore = { expert: 95, advanced: 75, intermediate: 50, beginner: 25 };
+
+  skills.forEach(skill => {
+    const cat   = skill.category || skill.skill_category || 'Other';
+    const level = (skill.proficiency_level || skill.level || 'beginner').toLowerCase();
+    const score = profScore[level] || 25;
+    if (!categoryMap[cat]) categoryMap[cat] = [];
+    categoryMap[cat].push(score);
+  });
+
+  const labels = Object.keys(categoryMap);
+  const values = labels.map(cat => {
+    const arr = categoryMap[cat];
+    return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+  });
+
+  // Destroy previous instance
+  if (radarChartInstance) { radarChartInstance.destroy(); }
+
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  radarChartInstance = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Skill Level',
+        data: values,
+        backgroundColor: 'rgba(99,102,241,0.18)',
+        borderColor: '#6366F1',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#818CF8',
+        pointBorderColor: '#6366F1',
+        pointHoverBackgroundColor: '#fff',
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: {
+          label: ctx => ` Avg Level: ${ctx.raw}%`
+        }
+      }},
+      scales: {
+        r: {
+          min: 0, max: 100,
+          ticks: { stepSize: 25, color: '#64748B', font: { size: 10 }, backdropColor: 'transparent' },
+          grid: { color: 'rgba(255,255,255,0.06)' },
+          angleLines: { color: 'rgba(255,255,255,0.06)' },
+          pointLabels: {
+            color: '#94A3B8',
+            font: { size: 11, weight: '600' }
+          }
+        }
+      },
+      animation: { duration: 1000, easing: 'easeOutQuart' }
+    }
+  });
+
+  // Render legend below chart
+  const catColors = ['#6366F1','#06B6D4','#10B981','#F59E0B','#8B5CF6','#EF4444','#3B82F6','#EC4899'];
+  const legend = document.getElementById('radarLegend');
+  legend.innerHTML = labels.map((l, i) => `
+    <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-secondary);">
+      <div style="width:10px;height:10px;border-radius:3px;background:${catColors[i % catColors.length]};flex-shrink:0;"></div>
+      ${l} <strong style="color:var(--text-primary); margin-left:2px;">${values[i]}%</strong>
+    </div>`
+  ).join('');
+}
+
+/* ── 8. LOAD ROLES DROPDOWN ─────────────────────────────── */
+async function loadRoles() {
+  try {
+    const data = await API.get('/roles');
+    ALL_ROLES = data.roles || data || [];
+    populateRoleSelects(ALL_ROLES);
+  } catch (err) {
+    Toast.warning('Could not load roles list.');
+    console.error(err);
+  }
+}
+
+function populateRoleSelects(roles) {
+  const makeOptions = (selectId) => {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    // Keep the placeholder option
+    const placeholder = sel.querySelector('option[value=""]');
+    sel.innerHTML = '';
+    if (placeholder) sel.appendChild(placeholder);
+    roles.forEach(role => {
+      const opt = document.createElement('option');
+      opt.value = role.role_id || role.id || role.role_name || role.name;
+      opt.textContent = role.role_name || role.title || role.name || role;
+      sel.appendChild(opt);
+    });
+  };
+  makeOptions('careerTargetRole');
+  makeOptions('readinessRole');
+}
+
+/* ── 9. GET AI CAREER PATH ──────────────────────────────── */
+async function getCareerPath() {
+  const sel   = document.getElementById('careerTargetRole');
+  const roleVal = sel.value;
+  const roleName = sel.options[sel.selectedIndex]?.text || roleVal;
+
+  if (!roleVal) { Toast.warning('Please select a target role first.'); return; }
+
+  const btn = document.getElementById('getCareerPathBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner spinner-sm"></div> Generating...`;
+
+  const output = document.getElementById('careerPathOutput');
+  output.innerHTML = `
+    <div class="ai-response-box">
+      <div class="ai-typing"><span></span><span></span><span></span></div>
+      <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Gemini AI is charting your path to <strong style="color:var(--primary-light);">${roleName}</strong>…</div>
+    </div>`;
+
+  try {
+    const result = await API.post('/career-path', {
+      employee_id: EMPLOYEE_ID,
+      target_role: roleVal
+    });
+    renderCareerPath(result, roleName);
+  } catch (err) {
+    output.innerHTML = `
+      <div class="alert alert-danger">
+        <i class="bi bi-exclamation-circle-fill"></i>
+        Failed to generate career path: ${err.message || 'Please try again.'}
+      </div>`;
+    Toast.error('Career path generation failed.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="bi bi-stars"></i> Get AI Path`;
+  }
+}
+
+function renderCareerPath(result, roleName) {
+  const output = document.getElementById('careerPathOutput');
+
+  const potentialRoles  = result.potential_roles || result.roles || [];
+  const roadmap         = result.roadmap || result.phases || result.career_path || [];
+  const summary         = result.summary || result.overview || '';
+  const totalTimeline   = result.total_timeline || result.estimated_time || '';
+
+  let html = '';
+
+  // Summary
+  if (summary) {
+    html += `
+      <div class="ai-response-box mb-3">
+        <p style="font-size:13px; color:var(--text-secondary); line-height:1.6; margin:0;">${summary}</p>
+        ${totalTimeline ? `<div style="margin-top:10px; font-size:12px; color:var(--accent); font-weight:600;"><i class="bi bi-clock-fill" style="margin-right:4px;"></i>Estimated Path: ${totalTimeline}</div>` : ''}
+      </div>`;
+  }
+
+  // Potential roles with readiness
+  if (potentialRoles.length) {
+    html += `<div class="section-chip" style="margin-top:4px;"><i class="bi bi-diagram-3"></i> Potential Roles</div>`;
+    html += potentialRoles.map(r => {
+      const rName  = r.role || r.title || r.name || r;
+      const pct    = r.readiness_percent || r.readiness || r.match_percent || 0;
+      const time   = r.timeline || r.time_to_reach || '';
+      const color  = scoreColor(pct);
+      const circ   = 2 * Math.PI * 20; // radius 20 → circumference
+      return `
+        <div class="potential-role-card">
+          <div class="role-readiness-ring">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle cx="26" cy="26" r="20" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
+              <circle cx="26" cy="26" r="20" fill="none" stroke="${color}" stroke-width="6"
+                stroke-linecap="round"
+                stroke-dasharray="${circ}"
+                stroke-dashoffset="${circ * (1 - pct/100)}"
+                style="transition:stroke-dashoffset 1.2s ease;"/>
+            </svg>
+            <div class="role-readiness-text" style="color:${color}; font-size:10px;">${Math.round(pct)}%</div>
+          </div>
+          <div class="role-info">
+            <div class="role-title">${rName}</div>
+            ${time ? `<div class="role-timeline"><i class="bi bi-calendar3" style="margin-right:3px;"></i>${time}</div>` : ''}
+          </div>
+          <span class="badge" style="background:${color}22; color:${color}; border: 1px solid ${color}44; flex-shrink:0;">
+            ${pct >= 80 ? 'Ready' : pct >= 60 ? 'Nearly Ready' : pct >= 40 ? 'In Progress' : 'Developing'}
+          </span>
+        </div>`;
+    }).join('');
+  }
+
+  // Roadmap phases
+  if (roadmap.length) {
+    html += `<div class="section-chip" style="margin-top:14px;"><i class="bi bi-signpost-split-fill"></i> Career Roadmap</div>`;
+    html += `<div class="roadmap-timeline">`;
+    html += roadmap.map((phase, i) => {
+      const phaseLabel  = phase.phase    || `Phase ${i + 1}`;
+      const phaseTitle  = phase.title    || phase.goal || phaseLabel;
+      const phaseDesc   = phase.description || phase.desc || phase.actions?.join(', ') || '';
+      const phaseDur    = phase.duration || phase.time || '';
+      const status      = phase.status   || (i === 0 ? 'active' : 'future');
+      return `
+        <div class="roadmap-step">
+          <div class="roadmap-dot ${status}"><div class="roadmap-dot-inner"></div></div>
+          <div class="roadmap-phase-label">${phaseLabel}</div>
+          <div class="roadmap-phase-title">${phaseTitle}</div>
+          ${phaseDesc ? `<div class="roadmap-phase-desc">${phaseDesc}</div>` : ''}
+          ${phaseDur  ? `<div class="roadmap-phase-duration"><i class="bi bi-hourglass-split" style="margin-right:3px;"></i>${phaseDur}</div>` : ''}
+        </div>`;
+    }).join('');
+    html += `</div>`;
+  }
+
+  if (!summary && !potentialRoles.length && !roadmap.length) {
+    html = `<div class="alert alert-info"><i class="bi bi-info-circle-fill"></i> Career path data received, but response format was unexpected.</div>`;
+  }
+
+  output.innerHTML = html;
+}
+
+/* ── 10. CHECK READINESS SCORE ──────────────────────────── */
+async function checkReadiness() {
+  const sel    = document.getElementById('readinessRole');
+  const roleId = sel.value;
+  const roleName = sel.options[sel.selectedIndex]?.text || roleId;
+
+  if (!roleId) { Toast.warning('Please select a role to check readiness.'); return; }
+
+  const btn = document.getElementById('checkReadinessBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner spinner-sm"></div>`;
+
+  const output = document.getElementById('readinessOutput');
+  output.innerHTML = `
+    <div style="display:flex; justify-content:center; padding:32px;">
+      <div class="spinner"></div>
+    </div>`;
+
+  try {
+    const result = await API.post('/readiness-score', {
+      employee_id: EMPLOYEE_ID,
+      role_id: roleId
+    });
+    renderReadinessScore(result, roleName);
+  } catch (err) {
+    output.innerHTML = `
+      <div class="alert alert-danger">
+        <i class="bi bi-exclamation-circle-fill"></i>
+        ${err.message || 'Failed to calculate readiness score.'}
+      </div>`;
+    Toast.error('Readiness check failed.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="bi bi-bar-chart-fill"></i> Check`;
+  }
+}
+
+function renderReadinessScore(result, roleName) {
+  const output   = document.getElementById('readinessOutput');
+  const score    = result.overall_score ?? result.score ?? result.readiness_score ?? 0;
+  const label    = result.label || readinessLabel(score);
+  const color    = scoreColor(score);
+  const components = result.components || result.breakdown || [];
+  const feedback = result.feedback || result.summary || '';
+
+  // Build score ring
+  const ringId = 'mainReadinessRing';
+  let html = `
+    <div class="readiness-score-center">
+      <div id="${ringId}"></div>
+      <div class="readiness-label" style="color:${color};">${label}</div>
+      <div class="readiness-desc">Readiness for <strong style="color:var(--text-primary);">${roleName}</strong></div>
+    </div>`;
+
+  // Component breakdown bars
+  if (components.length) {
+    html += `<div style="margin-top:16px;">`;
+    components.forEach(comp => {
+      const cName  = comp.name || comp.component || comp.label || '—';
+      const cScore = comp.score ?? comp.value ?? comp.percent ?? 0;
+      const cColor = scoreColor(cScore);
+      html += `
+        <div class="component-bar-row">
+          <div class="component-bar-label">
+            <span>${cName}</span>
+            <span>${Math.round(cScore)}%</span>
+          </div>
+          <div class="progress">
+            <div class="progress-bar" style="width:0%; background:linear-gradient(90deg, ${cColor}, ${cColor}99);"
+              data-target="${cScore}"></div>
+          </div>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Feedback / suggestions
+  if (feedback) {
+    html += `
+      <div class="ai-response-box mt-3">
+        <p style="font-size:12px; color:var(--text-secondary); line-height:1.6; margin:0;">${feedback}</p>
+      </div>`;
+  }
+
+  output.innerHTML = html;
+
+  // Render score ring
+  createScoreRing(ringId, score, 120);
+
+  // Animate progress bars
+  setTimeout(() => {
+    output.querySelectorAll('.progress-bar[data-target]').forEach(bar => {
+      bar.style.width = bar.dataset.target + '%';
+    });
+  }, 100);
+}
+
+function readinessLabel(score) {
+  if (score >= 85) return '🚀 Job Ready';
+  if (score >= 70) return '✅ Nearly Ready';
+  if (score >= 55) return '⚡ In Progress';
+  if (score >= 40) return '📈 Developing';
+  return '🌱 Just Starting';
+}
+
+</script>
+{% endblock %}

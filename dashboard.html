@@ -1,0 +1,899 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block page_title %}Organization Overview{% endblock %}
+
+{% block page_subtitle %}TalentBeacon™ Intelligence Dashboard{% endblock %}
+
+{% block header_actions %}
+  <span class="ai-badge">Live Analytics</span>
+  <span id="last-updated" class="text-xs text-muted" style="display:flex;align-items:center;gap:5px;">
+    <span style="width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block;animation:pulse-dot 2s infinite;"></span>
+    Synced just now
+  </span>
+  <button class="btn btn-primary btn-sm" onclick="window.location.href='/admin/users'">
+    <i class="bi bi-person-plus-fill"></i> Add Employee
+  </button>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Dashboard Wrapper ─────────────────────────────────── -->
+<div id="dashboard-root">
+
+  <!-- ── 1. KPI STAT CARDS ──────────────────────────────── -->
+  <div class="grid grid-4 mb-4" id="stat-cards-row">
+
+    <!-- Total Employees -->
+    <div class="stat-card indigo animate-in" style="animation-delay:0s;">
+      <div class="stat-icon indigo">
+        <i class="bi bi-people-fill"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value" id="stat-employees">—</div>
+        <div class="stat-label">Total Employees</div>
+        <div class="stat-trend up" id="stat-employees-trend">
+          <i class="bi bi-arrow-up-short"></i> <span id="stat-employees-dept">—</span> departments
+        </div>
+      </div>
+      <div style="margin-left:auto;opacity:0.4;font-size:36px;color:var(--primary);">
+        <i class="bi bi-people"></i>
+      </div>
+    </div>
+
+    <!-- Total Skills -->
+    <div class="stat-card purple animate-in" style="animation-delay:0.07s;">
+      <div class="stat-icon purple">
+        <i class="bi bi-stars"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value" id="stat-skills">—</div>
+        <div class="stat-label">Total Skills</div>
+        <div class="stat-trend up" id="stat-skills-trend">
+          <i class="bi bi-arrow-up-short"></i> <span id="stat-skills-cats">—</span> categories
+        </div>
+      </div>
+      <div style="margin-left:auto;opacity:0.4;font-size:36px;color:var(--secondary);">
+        <i class="bi bi-gem"></i>
+      </div>
+    </div>
+
+    <!-- Active Roles -->
+    <div class="stat-card cyan animate-in" style="animation-delay:0.14s;">
+      <div class="stat-icon cyan">
+        <i class="bi bi-briefcase-fill"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value" id="stat-roles">—</div>
+        <div class="stat-label">Active Roles</div>
+        <div class="stat-trend up">
+          <i class="bi bi-arrow-up-short"></i> Open positions
+        </div>
+      </div>
+      <div style="margin-left:auto;opacity:0.4;font-size:36px;color:var(--accent);">
+        <i class="bi bi-briefcase"></i>
+      </div>
+    </div>
+
+    <!-- Learning Modules -->
+    <div class="stat-card green animate-in" style="animation-delay:0.21s;">
+      <div class="stat-icon green">
+        <i class="bi bi-mortarboard-fill"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value" id="stat-modules">—</div>
+        <div class="stat-label">Learning Modules</div>
+        <div class="stat-trend up">
+          <i class="bi bi-arrow-up-short"></i> Skill pathways active
+        </div>
+      </div>
+      <div style="margin-left:auto;opacity:0.4;font-size:36px;color:var(--success);">
+        <i class="bi bi-journal-bookmark"></i>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── 2. CHARTS ROW ──────────────────────────────────── -->
+  <div class="grid grid-2 mb-4">
+
+    <!-- Skill Distribution Donut -->
+    <div class="card animate-in" style="animation-delay:0.28s;">
+      <div class="card-header">
+        <div>
+          <div class="card-title"><i class="bi bi-pie-chart-fill" style="color:var(--primary-light);margin-right:8px;"></i>Skill Distribution by Category</div>
+          <div class="text-xs text-muted mt-1">Breakdown of all registered workforce skills</div>
+        </div>
+        <span class="badge badge-primary" id="skill-chart-total-badge">...</span>
+      </div>
+      <div class="card-body" style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+        <div class="chart-container" style="max-width:220px;max-height:220px;flex-shrink:0;">
+          <canvas id="skillDonutChart" width="220" height="220"></canvas>
+        </div>
+        <div id="donut-legend" style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:10px;">
+          <!-- Legend injected by JS -->
+          <div class="empty-state" style="padding:20px 0;">
+            <div class="spinner spinner-sm"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Department Employee Count Bar Chart -->
+    <div class="card animate-in" style="animation-delay:0.35s;">
+      <div class="card-header">
+        <div>
+          <div class="card-title"><i class="bi bi-bar-chart-fill" style="color:var(--accent);margin-right:8px;"></i>Employees by Department</div>
+          <div class="text-xs text-muted mt-1">Headcount distribution across all departments</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="exportDeptChart()" title="Export chart">
+          <i class="bi bi-download"></i>
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="chart-container" style="height:220px;">
+          <canvas id="deptBarChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── 3. RECENT EMPLOYEES TABLE + WORKFORCE READINESS ── -->
+  <div class="grid grid-2 mb-4" style="grid-template-columns: 3fr 2fr;">
+
+    <!-- Recent Employees Table -->
+    <div class="card animate-in" style="animation-delay:0.42s;">
+      <div class="card-header">
+        <div>
+          <div class="card-title"><i class="bi bi-person-lines-fill" style="color:var(--success);margin-right:8px;"></i>Recent Employees</div>
+          <div class="text-xs text-muted mt-1">Top 10 most recently added workforce members</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="window.location.href='/admin/users'">
+          View All <i class="bi bi-arrow-right"></i>
+        </button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tb-table" id="employees-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Employee</th>
+              <th>Department</th>
+              <th>Skills</th>
+              <th>Readiness</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="employees-tbody">
+            <tr>
+              <td colspan="6">
+                <div class="flex-center" style="padding:32px 0;">
+                  <div class="spinner"></div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Workforce Readiness Overview -->
+    <div class="card animate-in" style="animation-delay:0.49s;">
+      <div class="card-header">
+        <div>
+          <div class="card-title"><i class="bi bi-speedometer2" style="color:var(--warning);margin-right:8px;"></i>Workforce Readiness</div>
+          <div class="text-xs text-muted mt-1">Overall team skill health indicators</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="window.location.href='/manager/workforce-readiness'">
+          <i class="bi bi-arrow-up-right"></i>
+        </button>
+      </div>
+      <div class="card-body">
+
+        <!-- Overall score ring -->
+        <div class="flex-center mb-4" style="gap:20px;flex-wrap:wrap;">
+          <div id="readiness-ring" class="flex-center" style="flex-direction:column;gap:8px;">
+            <div class="flex-center" style="width:110px;height:110px;background:var(--bg-elevated);border-radius:50%;border:2px solid var(--border);">
+              <div class="spinner"></div>
+            </div>
+          </div>
+          <div style="flex:1;min-width:120px;">
+            <div class="text-sm text-muted mb-1">Overall Score</div>
+            <div id="readiness-label" style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:22px;color:var(--text-primary);">—</div>
+            <div class="text-xs text-muted mt-1">Workforce average capability rating</div>
+          </div>
+        </div>
+
+        <!-- Readiness breakdown bars -->
+        <div id="readiness-bars" style="display:flex;flex-direction:column;gap:14px;">
+          <div class="flex-center" style="padding:16px 0;">
+            <div class="spinner spinner-sm"></div>
+          </div>
+        </div>
+
+        <!-- Quick insights -->
+        <div id="readiness-insights" style="margin-top:16px;display:none;">
+          <!-- Injected by JS -->
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── 4. SKILLS TOP LIST + ROLE REQUIREMENTS ─────────── -->
+  <div class="grid grid-2 mb-4">
+
+    <!-- Top Skills in Org -->
+    <div class="card animate-in" style="animation-delay:0.56s;">
+      <div class="card-header">
+        <div class="card-title"><i class="bi bi-trophy-fill" style="color:var(--warning);margin-right:8px;"></i>Top Skills in Organization</div>
+      </div>
+      <div class="card-body">
+        <div id="top-skills-list" style="display:flex;flex-direction:column;gap:12px;">
+          <div class="flex-center" style="padding:20px 0;"><div class="spinner spinner-sm"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Role Requirements Overview -->
+    <div class="card animate-in" style="animation-delay:0.63s;">
+      <div class="card-header">
+        <div class="card-title"><i class="bi bi-diagram-3-fill" style="color:var(--accent);margin-right:8px;"></i>Open Role Snapshot</div>
+      </div>
+      <div class="card-body">
+        <div id="roles-list" style="display:flex;flex-direction:column;gap:10px;">
+          <div class="flex-center" style="padding:20px 0;"><div class="spinner spinner-sm"></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── 5. FOOTER QUICK ACTIONS ────────────────────────── -->
+  <div class="card animate-in" style="animation-delay:0.7s;">
+    <div class="card-body" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+      <span style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-right:4px;">
+        <i class="bi bi-lightning-charge-fill" style="color:var(--warning);"></i> Quick Actions:
+      </span>
+      <button class="btn btn-outline btn-sm" onclick="window.location.href='/admin/users'">
+        <i class="bi bi-person-plus"></i> Manage Users
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="window.location.href='/admin/skills'">
+        <i class="bi bi-stars"></i> Skill Catalog
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="window.location.href='/manager/talent-discovery'">
+        <i class="bi bi-search-heart"></i> Talent Discovery
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="window.location.href='/manager/workforce-readiness'">
+        <i class="bi bi-graph-up-arrow"></i> Readiness Report
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="window.location.href='/manager/skill-gap'">
+        <i class="bi bi-clipboard2-data"></i> Skill Gap Analysis
+      </button>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <span class="text-xs text-muted">Data as of</span>
+        <span class="badge badge-muted" id="data-timestamp">—</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /#dashboard-root -->
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+/* ═══════════════════════════════════════════════════════════
+   TalentBeacon™ – Admin Dashboard
+   Full analytics dashboard with Chart.js and live API data
+   ═══════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  /* ── Auth Guard ─────────────────────────────────────────── */
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!requireRole('admin', 'manager')) return;
+    initDashboard();
+  });
+
+  /* ── Chart instances ────────────────────────────────────── */
+  let skillDonutChart = null;
+  let deptBarChart    = null;
+
+  /* ── Shared dark chart defaults ─────────────────────────── */
+  const CHART_DEFAULTS = {
+    backgroundColor: 'rgba(0,0,0,0)',
+    gridColor: 'rgba(255,255,255,0.06)',
+    tickColor: '#94A3B8',
+    font: { family: 'Inter, sans-serif', size: 12 },
+  };
+
+  /* ── Palette ─────────────────────────────────────────────── */
+  const PALETTE = [
+    '#6366F1', '#8B5CF6', '#06B6D4', '#10B981',
+    '#F59E0B', '#EF4444', '#EC4899', '#3B82F6',
+    '#A78BFA', '#34D399',
+  ];
+
+  /* ── Main init ──────────────────────────────────────────── */
+  async function initDashboard() {
+    // Set timestamp
+    const tsEl = document.getElementById('data-timestamp');
+    if (tsEl) tsEl.textContent = new Date().toLocaleString();
+
+    // Fire all API calls in parallel
+    await Promise.allSettled([
+      loadEmployeeStats(),
+      loadSkillStats(),
+      loadRoles(),
+      loadRecentEmployees(),
+    ]);
+  }
+
+  /* ── 1. Employee Stats ──────────────────────────────────── */
+  async function loadEmployeeStats() {
+    try {
+      const data = await API.get('/employees/stats');
+      if (!data) return;
+
+      // Stat card: Total Employees
+      const empEl = document.getElementById('stat-employees');
+      if (empEl) {
+        empEl.textContent = '0';
+        animateNumber(empEl, data.total_employees ?? data.total ?? 0);
+      }
+
+      // Departments count
+      const deptSpan = document.getElementById('stat-employees-dept');
+      if (deptSpan && data.total_departments != null) {
+        deptSpan.textContent = data.total_departments;
+      }
+
+      // Render department bar chart
+      if (data.by_department && Object.keys(data.by_department).length) {
+        renderDeptBarChart(data.by_department);
+      } else if (data.departments) {
+        renderDeptBarChart(data.departments);
+      }
+
+      // Workforce readiness section
+      renderReadinessSection(data);
+
+    } catch (err) {
+      console.warn('Employee stats error:', err);
+      Toast.warning('Could not load employee statistics.');
+    }
+  }
+
+  /* ── 2. Skill Stats ─────────────────────────────────────── */
+  async function loadSkillStats() {
+    try {
+      const data = await API.get('/skills/stats');
+      if (!data) return;
+
+      // Stat card: Total Skills
+      const skillEl = document.getElementById('stat-skills');
+      if (skillEl) {
+        skillEl.textContent = '0';
+        animateNumber(skillEl, data.total_skills ?? data.total ?? 0);
+      }
+
+      // Learning modules (derived or direct)
+      const modEl = document.getElementById('stat-modules');
+      if (modEl) {
+        const modules = data.total_learning_modules ?? data.learning_modules ?? data.total_skills ?? 0;
+        modEl.textContent = '0';
+        animateNumber(modEl, modules);
+      }
+
+      // Categories count
+      const catSpan = document.getElementById('stat-skills-cats');
+      if (catSpan) {
+        const cats = data.total_categories ?? (data.by_category ? Object.keys(data.by_category).length : '—');
+        catSpan.textContent = cats;
+      }
+
+      // Render donut chart
+      const categoryData = data.by_category ?? data.categories ?? null;
+      if (categoryData) {
+        renderSkillDonutChart(categoryData);
+        renderTopSkillsList(data.top_skills ?? data.skills ?? []);
+      }
+
+    } catch (err) {
+      console.warn('Skill stats error:', err);
+      Toast.warning('Could not load skill statistics.');
+    }
+  }
+
+  /* ── 3. Roles ────────────────────────────────────────────── */
+  async function loadRoles() {
+    try {
+      const data = await API.get('/roles');
+      if (!data) return;
+
+      const roles = data.roles ?? data.data ?? data ?? [];
+
+      // Stat card: Active Roles
+      const rolesEl = document.getElementById('stat-roles');
+      if (rolesEl) {
+        rolesEl.textContent = '0';
+        animateNumber(rolesEl, Array.isArray(roles) ? roles.length : 0);
+      }
+
+      renderRolesList(Array.isArray(roles) ? roles : []);
+
+    } catch (err) {
+      console.warn('Roles error:', err);
+      Toast.warning('Could not load roles data.');
+    }
+  }
+
+  /* ── 4. Recent Employees ────────────────────────────────── */
+  async function loadRecentEmployees() {
+    try {
+      const data = await API.get('/employees?per_page=10');
+      if (!data) return;
+
+      const employees = data.employees ?? data.data ?? data ?? [];
+      renderEmployeeTable(Array.isArray(employees) ? employees : []);
+
+    } catch (err) {
+      console.warn('Recent employees error:', err);
+      const tbody = document.getElementById('employees-tbody');
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6">
+              <div class="empty-state">
+                <div class="empty-state-icon">⚠️</div>
+                <div class="empty-state-title">Failed to load employees</div>
+                <div class="empty-state-desc">${err.message || 'API error'}</div>
+              </div>
+            </td>
+          </tr>`;
+      }
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     CHART RENDERERS
+     ══════════════════════════════════════════════════════════ */
+
+  /* ── Skill Donut Chart ──────────────────────────────────── */
+  function renderSkillDonutChart(categoryData) {
+    const ctx = document.getElementById('skillDonutChart');
+    if (!ctx) return;
+
+    // Normalise input: { category: count } or [{name, count}]
+    let labels = [], counts = [];
+    if (Array.isArray(categoryData)) {
+      labels = categoryData.map(c => c.name ?? c.category ?? 'Other');
+      counts = categoryData.map(c => c.count ?? c.value ?? 0);
+    } else {
+      labels = Object.keys(categoryData);
+      counts = Object.values(categoryData);
+    }
+
+    const total = counts.reduce((a, b) => a + b, 0);
+
+    // Badge
+    const badge = document.getElementById('skill-chart-total-badge');
+    if (badge) badge.textContent = `${total} skills`;
+
+    if (skillDonutChart) skillDonutChart.destroy();
+
+    skillDonutChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: counts,
+          backgroundColor: PALETTE.slice(0, labels.length),
+          borderColor: 'rgba(0,0,0,0)',
+          borderWidth: 0,
+          hoverOffset: 8,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        cutout: '68%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#20203A',
+            borderColor: 'rgba(255,255,255,0.08)',
+            borderWidth: 1,
+            titleColor: '#F1F5F9',
+            bodyColor: '#94A3B8',
+            callbacks: {
+              label: ctx => {
+                const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                return `  ${ctx.parsed} skills  (${pct}%)`;
+              },
+            },
+          },
+        },
+        animation: { animateRotate: true, duration: 900 },
+      },
+    });
+
+    // Legend
+    renderDonutLegend(labels, counts, total);
+  }
+
+  function renderDonutLegend(labels, counts, total) {
+    const legend = document.getElementById('donut-legend');
+    if (!legend) return;
+    legend.innerHTML = labels.map((label, i) => {
+      const pct = total > 0 ? ((counts[i] / total) * 100).toFixed(1) : 0;
+      return `
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:${PALETTE[i % PALETTE.length]};flex-shrink:0;"></span>
+          <span style="flex:1;font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${label}</span>
+          <span style="font-size:12px;font-weight:600;color:var(--text-primary);">${counts[i]}</span>
+          <span style="font-size:11px;color:var(--text-muted);width:42px;text-align:right;">${pct}%</span>
+        </div>`;
+    }).join('');
+  }
+
+  /* ── Department Bar Chart ───────────────────────────────── */
+  function renderDeptBarChart(deptData) {
+    const ctx = document.getElementById('deptBarChart');
+    if (!ctx) return;
+
+    let labels = [], counts = [];
+    if (Array.isArray(deptData)) {
+      labels = deptData.map(d => d.department ?? d.name ?? 'Unknown');
+      counts = deptData.map(d => d.count ?? d.employee_count ?? d.value ?? 0);
+    } else {
+      labels = Object.keys(deptData);
+      counts = Object.values(deptData);
+    }
+
+    // Sort descending
+    const sorted = labels.map((l, i) => ({ l, c: counts[i] }))
+                         .sort((a, b) => b.c - a.c);
+    labels = sorted.map(x => x.l);
+    counts = sorted.map(x => x.c);
+
+    if (deptBarChart) deptBarChart.destroy();
+
+    deptBarChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Employees',
+          data: counts,
+          backgroundColor: labels.map((_, i) => PALETTE[i % PALETTE.length] + 'CC'),
+          borderColor:     labels.map((_, i) => PALETTE[i % PALETTE.length]),
+          borderWidth: 1,
+          borderRadius: 6,
+          borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: labels.length > 6 ? 'y' : 'x',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#20203A',
+            borderColor: 'rgba(255,255,255,0.08)',
+            borderWidth: 1,
+            titleColor: '#F1F5F9',
+            bodyColor: '#94A3B8',
+            callbacks: {
+              label: ctx => `  ${ctx.parsed.y ?? ctx.parsed.x} employees`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: CHART_DEFAULTS.gridColor },
+            ticks: { color: CHART_DEFAULTS.tickColor, font: CHART_DEFAULTS.font, maxRotation: 30 },
+            border: { color: 'rgba(255,255,255,0.06)' },
+          },
+          y: {
+            grid: { color: CHART_DEFAULTS.gridColor },
+            ticks: { color: CHART_DEFAULTS.tickColor, font: CHART_DEFAULTS.font, stepSize: 1 },
+            border: { color: 'rgba(255,255,255,0.06)' },
+            beginAtZero: true,
+          },
+        },
+        animation: { duration: 800, easing: 'easeOutQuart' },
+      },
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     TABLE & LIST RENDERERS
+     ══════════════════════════════════════════════════════════ */
+
+  /* ── Employee Table ─────────────────────────────────────── */
+  function renderEmployeeTable(employees) {
+    const tbody = document.getElementById('employees-tbody');
+    if (!tbody) return;
+
+    if (!employees.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6">
+            <div class="empty-state">
+              <div class="empty-state-icon">👥</div>
+              <div class="empty-state-title">No employees found</div>
+              <div class="empty-state-desc">Add employees to see them here.</div>
+            </div>
+          </td>
+        </tr>`;
+      return;
+    }
+
+    tbody.innerHTML = employees.map((emp, idx) => {
+      const name   = emp.name ?? emp.employee_name ?? '—';
+      const dept   = emp.department ?? emp.department_name ?? '—';
+      const skills = emp.skill_count ?? emp.skills?.length ?? '—';
+      const score  = emp.readiness_score ?? emp.score ?? null;
+      const email  = emp.email ?? '';
+      const initials = avatarInitials(name);
+      const bg = avatarColor(name);
+
+      // Readiness badge
+      let readinessBadge = '<span class="text-muted text-xs">—</span>';
+      if (score !== null) {
+        const cls = scoreClass(score);
+        const clsMap = { excellent: 'badge-success', good: 'badge-info', fair: 'badge-warning', poor: 'badge-danger' };
+        readinessBadge = `<span class="badge ${clsMap[cls] || 'badge-muted'}">${Math.round(score)}%</span>`;
+      }
+
+      // Status badge (active by default)
+      const active = emp.is_active ?? emp.active ?? true;
+      const statusBadge = active
+        ? `<span class="badge badge-success"><span style="width:5px;height:5px;border-radius:50%;background:var(--success);display:inline-block;"></span> Active</span>`
+        : `<span class="badge badge-muted">Inactive</span>`;
+
+      return `
+        <tr style="cursor:pointer;" onclick="window.location.href='/admin/users'">
+          <td>
+            <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:var(--text-muted);font-size:12px;">#${String(idx + 1).padStart(2, '0')}</span>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="avatar avatar-sm" style="background:${bg};">${initials}</div>
+              <div>
+                <div style="font-weight:600;font-size:13px;">${name}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${email}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge badge-primary">${dept}</span>
+          </td>
+          <td>
+            <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:var(--primary-light);">${skills}</span>
+            <span class="text-xs text-muted"> skills</span>
+          </td>
+          <td>${readinessBadge}</td>
+          <td>${statusBadge}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  /* ── Top Skills List ────────────────────────────────────── */
+  function renderTopSkillsList(skills) {
+    const el = document.getElementById('top-skills-list');
+    if (!el) return;
+
+    if (!skills.length) {
+      el.innerHTML = `<div class="empty-state" style="padding:20px 0;">
+        <div class="empty-state-icon">🔍</div>
+        <div class="empty-state-title">No skill data available</div>
+      </div>`;
+      return;
+    }
+
+    const maxCount = Math.max(...skills.map(s => s.count ?? s.employee_count ?? 1));
+
+    el.innerHTML = skills.slice(0, 8).map((skill, i) => {
+      const name    = skill.name ?? skill.skill_name ?? 'Unknown';
+      const count   = skill.count ?? skill.employee_count ?? 0;
+      const cat     = skill.category ?? 'technical';
+      const pct     = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
+      const color   = PALETTE[i % PALETTE.length];
+      const catTag  = skillTag(cat, cat.toLowerCase());
+
+      return `
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:26px;text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);">${i + 1}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+              <span style="font-size:13px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%;">${name}</span>
+              <div style="display:flex;align-items:center;gap:6px;">
+                ${catTag}
+                <span style="font-size:12px;font-weight:700;color:${color};">${count}</span>
+              </div>
+            </div>
+            <div class="progress">
+              <div class="progress-bar" style="width:${pct}%;background:${color};transition:width 1s ${0.1 * i}s ease;"></div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  /* ── Roles List ─────────────────────────────────────────── */
+  function renderRolesList(roles) {
+    const el = document.getElementById('roles-list');
+    if (!el) return;
+
+    if (!roles.length) {
+      el.innerHTML = `<div class="empty-state" style="padding:20px 0;">
+        <div class="empty-state-icon">💼</div>
+        <div class="empty-state-title">No roles defined</div>
+      </div>`;
+      return;
+    }
+
+    el.innerHTML = roles.slice(0, 7).map((role, i) => {
+      const name     = role.title ?? role.name ?? role.role_name ?? 'Unknown Role';
+      const dept     = role.department ?? role.department_name ?? '';
+      const reqCount = role.required_skills_count ?? role.skills?.length ?? '?';
+      const color    = PALETTE[i % PALETTE.length];
+
+      return `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:8px;background:var(--bg-elevated);border:1px solid var(--border);transition:var(--transition);"
+             onmouseover="this.style.borderColor='${color}44'" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">
+          <div style="width:36px;height:36px;border-radius:8px;background:${color}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="bi bi-briefcase-fill" style="color:${color};font-size:15px;"></i>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+            ${dept ? `<div style="font-size:11px;color:var(--text-muted);">${dept}</div>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:13px;font-weight:700;color:${color};">${reqCount}</div>
+            <div style="font-size:10px;color:var(--text-muted);">skills req.</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  /* ── Workforce Readiness Section ────────────────────────── */
+  function renderReadinessSection(data) {
+    // Expect data fields: avg_readiness_score, readiness_by_department, total_departments, etc.
+    const avgScore = data.avg_readiness_score ?? data.average_score ?? data.readiness_score ?? null;
+
+    // Overall ring
+    const ringEl = document.getElementById('readiness-ring');
+    if (ringEl) {
+      if (avgScore !== null) {
+        createScoreRing('readiness-ring', avgScore, 110);
+      } else {
+        ringEl.innerHTML = `
+          <div style="width:110px;height:110px;border-radius:50%;background:var(--bg-elevated);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:13px;color:var(--text-muted);">N/A</span>
+          </div>`;
+      }
+    }
+
+    const labelEl = document.getElementById('readiness-label');
+    if (labelEl) {
+      if (avgScore !== null) {
+        labelEl.textContent = `${Math.round(avgScore)}%`;
+        labelEl.style.color = scoreColor(avgScore);
+      } else {
+        labelEl.textContent = 'No data';
+      }
+    }
+
+    // Breakdown bars per department
+    const barsEl = document.getElementById('readiness-bars');
+    if (barsEl) {
+      const deptScores = data.readiness_by_department ?? data.by_department_readiness ?? null;
+      if (deptScores && Object.keys(deptScores).length) {
+        const entries = Object.entries(deptScores).slice(0, 5);
+        barsEl.innerHTML = entries.map(([dept, score], i) => {
+          const s = typeof score === 'object' ? (score.avg ?? score.score ?? 0) : score;
+          const color = scoreColor(s);
+          return `
+            <div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                <span style="font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%;">${dept}</span>
+                <span style="font-size:12px;font-weight:700;color:${color};">${Math.round(s)}%</span>
+              </div>
+              <div class="progress">
+                <div class="progress-bar" style="width:${Math.round(s)}%;background:${color};transition:width 1.2s ${i * 0.15}s ease;"></div>
+              </div>
+            </div>`;
+        }).join('');
+      } else {
+        // Fallback placeholders using dept data
+        const deptData = data.by_department;
+        if (deptData) {
+          const entries = Object.entries(
+            Array.isArray(deptData) ? Object.fromEntries(deptData.map(d => [d.department ?? d.name, d.count])) : deptData
+          ).slice(0, 5);
+          const total = entries.reduce((s, [,c]) => s + c, 0);
+          barsEl.innerHTML = entries.map(([dept, count], i) => {
+            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+            const color = PALETTE[i % PALETTE.length];
+            return `
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                  <span style="font-size:12px;color:var(--text-secondary);">${dept}</span>
+                  <span style="font-size:12px;font-weight:700;color:${color};">${count} emp.</span>
+                </div>
+                <div class="progress">
+                  <div class="progress-bar" style="width:${pct}%;background:${color};transition:width 1.2s ${i * 0.12}s ease;"></div>
+                </div>
+              </div>`;
+          }).join('');
+        } else {
+          barsEl.innerHTML = `
+            <div class="empty-state" style="padding:16px 0;">
+              <div class="empty-state-icon">📊</div>
+              <div class="empty-state-desc">No breakdown data available</div>
+            </div>`;
+        }
+      }
+    }
+
+    // Insights section
+    renderReadinessInsights(data);
+  }
+
+  function renderReadinessInsights(data) {
+    const el = document.getElementById('readiness-insights');
+    if (!el) return;
+
+    const total = data.total_employees ?? data.total ?? null;
+    const depts = data.total_departments ?? null;
+    const avgScore = data.avg_readiness_score ?? null;
+
+    if (total === null && depts === null) return;
+
+    el.style.display = 'block';
+    const color = avgScore != null ? scoreColor(avgScore) : 'var(--primary-light)';
+
+    el.innerHTML = `
+      <div style="border-top:1px solid var(--border);padding-top:12px;display:flex;flex-wrap:wrap;gap:10px;">
+        ${total !== null ? `
+          <div style="flex:1;min-width:100px;padding:10px 12px;background:var(--bg-elevated);border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:18px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;color:var(--primary-light);">${total}</div>
+            <div style="font-size:11px;color:var(--text-muted);">Total Staff</div>
+          </div>` : ''}
+        ${depts !== null ? `
+          <div style="flex:1;min-width:100px;padding:10px 12px;background:var(--bg-elevated);border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:18px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;color:var(--accent);">${depts}</div>
+            <div style="font-size:11px;color:var(--text-muted);">Departments</div>
+          </div>` : ''}
+        ${avgScore !== null ? `
+          <div style="flex:1;min-width:100px;padding:10px 12px;background:var(--bg-elevated);border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:18px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;color:${color};">${Math.round(avgScore)}%</div>
+            <div style="font-size:11px;color:var(--text-muted);">Avg. Readiness</div>
+          </div>` : ''}
+      </div>`;
+  }
+
+  /* ── Export chart helper ────────────────────────────────── */
+  window.exportDeptChart = function () {
+    const canvas = document.getElementById('deptBarChart');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = 'department-headcount.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    Toast.success('Chart exported as PNG.');
+  };
+
+})();
+</script>
+{% endblock %}

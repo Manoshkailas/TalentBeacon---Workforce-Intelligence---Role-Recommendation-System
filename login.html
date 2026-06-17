@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TalentBeacon™ – Sign In</title>
+  <meta name="description" content="Sign in to TalentBeacon™ Employee Intelligence Platform"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <link href="/static/css/main.css" rel="stylesheet"/>
+</head>
+<body>
+<div class="login-page">
+
+  <!-- Animated Grid Background -->
+  <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(circle at 1px 1px,rgba(99,102,241,0.08) 1px,transparent 0);background-size:40px 40px;"></div>
+  </div>
+
+  <div class="login-card">
+    <!-- Logo -->
+    <div class="text-center mb-4">
+      <div style="display:inline-flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div class="brand-icon" style="width:48px;height:48px;font-size:22px">🎯</div>
+        <div style="text-align:left">
+          <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:22px;color:#F1F5F9">Talent<span style="color:#818CF8">Beacon</span>™</div>
+          <div style="font-size:11px;color:#64748B">Skill Intelligence Platform</div>
+        </div>
+      </div>
+      <h1 style="font-size:18px;font-weight:600;color:#94A3B8;margin-top:20px">Welcome back</h1>
+      <p style="font-size:13px;color:#64748B">Sign in to your account</p>
+    </div>
+
+    <!-- Demo accounts hint -->
+    <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:10px 14px;margin-bottom:20px">
+      <div style="font-size:11px;font-weight:600;color:#818CF8;margin-bottom:6px">🔑 Demo Accounts</div>
+      <div style="display:grid;gap:3px">
+        <div class="demo-acc" data-email="admin@talentbeacon.com" data-pw="admin123" style="font-size:11px;color:#94A3B8;cursor:pointer;padding:3px 6px;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.background='transparent'">
+          <span style="color:#EF4444;font-weight:600">Admin</span> — admin@talentbeacon.com / admin123
+        </div>
+        <div class="demo-acc" data-email="manager@talentbeacon.com" data-pw="manager123" style="font-size:11px;color:#94A3B8;cursor:pointer;padding:3px 6px;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.background='transparent'">
+          <span style="color:#6366F1;font-weight:600">Manager</span> — manager@talentbeacon.com / manager123
+        </div>
+        <div class="demo-acc" data-email="alice.johnson@talentbeacon.com" data-pw="employee123" style="font-size:11px;color:#94A3B8;cursor:pointer;padding:3px 6px;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.background='transparent'">
+          <span style="color:#06B6D4;font-weight:600">Employee</span> — alice.johnson@talentbeacon.com / employee123
+        </div>
+      </div>
+      <div style="font-size:10px;color:#64748B;margin-top:5px">↑ Click to auto-fill credentials</div>
+    </div>
+
+    <!-- Login Form -->
+    <form id="login-form">
+      <div id="error-alert" class="alert alert-danger" style="display:none;margin-bottom:16px">
+        <i class="bi bi-exclamation-circle"></i>
+        <span id="error-msg"></span>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label class="form-label" for="email-input">Email address</label>
+        <div style="position:relative">
+          <i class="bi bi-envelope" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#64748B;font-size:15px"></i>
+          <input type="email" id="email-input" class="form-control" 
+                 placeholder="you@talentbeacon.com" 
+                 style="padding-left:38px"
+                 required autocomplete="email"/>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <label class="form-label" for="password-input">Password</label>
+        <div style="position:relative">
+          <i class="bi bi-lock" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#64748B;font-size:15px"></i>
+          <input type="password" id="password-input" class="form-control"
+                 placeholder="Enter your password"
+                 style="padding-left:38px;padding-right:40px"
+                 required autocomplete="current-password"/>
+          <button type="button" id="toggle-pw" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#64748B;cursor:pointer;padding:0">
+            <i class="bi bi-eye" id="pw-eye-icon"></i>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100" id="login-btn" style="padding:12px;font-size:15px">
+        <span id="login-btn-text">Sign In</span>
+        <div class="spinner-sm" id="login-spinner" style="display:none;border-width:2px"></div>
+      </button>
+    </form>
+
+    <div class="text-center mt-3">
+      <span style="font-size:12px;color:#64748B">Powered by Gemini AI • TalentBeacon™ v1.0</span>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/main.js"></script>
+<script>
+// Auto-redirect if already logged in
+if (Auth.isLoggedIn()) {
+  const role = Auth.getRole();
+  redirectByRole(role);
+}
+
+function redirectByRole(role) {
+  if (role === 'admin')    window.location.href = '/admin/dashboard';
+  else if (role === 'manager') window.location.href = '/manager/talent-discovery';
+  else window.location.href = '/employee/career-dashboard';
+}
+
+// Demo account click-to-fill
+document.querySelectorAll('.demo-acc').forEach(el => {
+  el.addEventListener('click', () => {
+    document.getElementById('email-input').value = el.dataset.email;
+    document.getElementById('password-input').value = el.dataset.pw;
+  });
+});
+
+// Toggle password visibility
+document.getElementById('toggle-pw').addEventListener('click', () => {
+  const input = document.getElementById('password-input');
+  const icon  = document.getElementById('pw-eye-icon');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className = 'bi bi-eye-slash';
+  } else {
+    input.type = 'password';
+    icon.className = 'bi bi-eye';
+  }
+});
+
+// Login form submit
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const email    = document.getElementById('email-input').value.trim();
+  const password = document.getElementById('password-input').value;
+  const btn      = document.getElementById('login-btn');
+  const spinner  = document.getElementById('login-spinner');
+  const btnText  = document.getElementById('login-btn-text');
+  const errorDiv = document.getElementById('error-alert');
+  const errorMsg = document.getElementById('error-msg');
+
+  // UI loading state
+  btn.disabled  = true;
+  spinner.style.display = 'block';
+  btnText.textContent = 'Signing in...';
+  errorDiv.style.display = 'none';
+
+  try {
+    const data = await API.post('/auth/login', { email, password });
+    if (!data) return;
+
+    Auth.setToken(data.access_token);
+    Auth.setUser(data.user);
+
+    // Fetch employee data if needed
+    if (data.user.employee_id) {
+      try {
+        const emp = await API.get(`/employees/${data.user.employee_id}`);
+        const user = data.user;
+        user.employee = emp;
+        Auth.setUser(user);
+      } catch {}
+    }
+
+    btnText.textContent = '✓ Success!';
+    btn.style.background = 'linear-gradient(135deg,#10B981,#06B6D4)';
+
+    setTimeout(() => redirectByRole(data.user.role), 600);
+  } catch (err) {
+    errorMsg.textContent = err.message || 'Invalid credentials. Please try again.';
+    errorDiv.style.display = 'flex';
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    btnText.textContent = 'Sign In';
+    // Shake animation
+    document.getElementById('login-form').style.animation = 'shake 0.4s ease';
+    setTimeout(() => { document.getElementById('login-form').style.animation = ''; }, 400);
+  }
+});
+</script>
+<style>
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+</style>
+</body>
+</html>

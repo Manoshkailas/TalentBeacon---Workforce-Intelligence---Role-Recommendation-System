@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+{% block title %}Match Results History{% endblock %}
+{% block page_title %}Match Results History{% endblock %}
+{% block page_subtitle %}Review and analyze historical employee matching runs{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-outline" style="border-color:var(--danger);color:var(--danger)" onclick="confirmClearHistory()">
+  <i class="bi bi-trash3-fill"></i> Clear History
+</button>
+<button class="btn btn-primary" onclick="window.location.href='/manager/talent-discovery'">
+  <i class="bi bi-search-heart"></i> New Match Simulation
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Stat Cards -->
+<div class="grid-4 mb-4">
+  <div class="stat-card indigo">
+    <div class="stat-icon indigo">
+      <i class="bi bi-clipboard-data"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="stat-total-matches">0</div>
+      <div class="stat-label">Total Matches Logged</div>
+    </div>
+  </div>
+
+  <div class="stat-card purple">
+    <div class="stat-icon purple">
+      <i class="bi bi-percent"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="stat-avg-score">0%</div>
+      <div class="stat-label">Avg Match Score</div>
+    </div>
+  </div>
+
+  <div class="stat-card cyan">
+    <div class="stat-icon cyan">
+      <i class="bi bi-trophy"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="stat-max-score">0%</div>
+      <div class="stat-label">Highest Match Score</div>
+    </div>
+  </div>
+
+  <div class="stat-card green">
+    <div class="stat-icon green">
+      <i class="bi bi-briefcase"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="stat-roles-count">0</div>
+      <div class="stat-label">Roles Evaluated</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid-3 mb-4" style="grid-template-columns: 2fr 1fr; gap: 20px;">
+  <!-- Main Logs Card -->
+  <div class="card animate-in">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-clock-history" style="color:var(--primary)"></i> Match Evaluation Logs</span>
+      <div style="display:flex;gap:10px">
+        <select class="form-select" id="role-filter" onchange="applyFilters()" style="padding:5px 12px;font-size:12.5px;border-radius:6px;background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-primary);outline:none">
+          <option value="">All Roles</option>
+        </select>
+        <input class="form-control" id="search-filter" oninput="applyFilters()" placeholder="Search employee..." style="padding:5px 12px;font-size:12.5px;border-radius:6px;background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-primary);outline:none"/>
+      </div>
+    </div>
+    <div class="card-body" id="logs-container" style="position:relative; min-height: 250px;">
+      <!-- Table will be rendered here -->
+    </div>
+  </div>
+
+  <!-- Insights Card -->
+  <div class="card animate-in animate-in-delay-1">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-graph-up" style="color:var(--secondary)"></i> Score by Role</span>
+    </div>
+    <div class="card-body">
+      <div class="chart-container" style="height: 260px;">
+        <canvas id="roleChart"></canvas>
+      </div>
+      <div class="mt-3 text-xs text-muted text-center">
+        Average suitability percentage computed for each role profile.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--bg-surface);border:1px solid var(--border);box-shadow:var(--shadow-card);color:var(--text-primary);border-radius:var(--radius-lg)">
+      <div class="modal-header" style="border-bottom:1px solid var(--border)">
+        <h5 class="modal-title" id="modal-emp-name" style="font-weight:700">Match Breakdown</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="padding:24px">
+        <div class="text-center mb-4">
+          <div id="modal-ring-container" class="flex-center mb-2"></div>
+          <div style="font-size:14px;color:var(--text-muted)" id="modal-role-title">Data Scientist Match</div>
+        </div>
+        
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div class="flex-between text-xs mb-1">
+              <span class="text-secondary fw-600">Skills Matching Score</span>
+              <span id="modal-skill-score" class="fw-700">0%</span>
+            </div>
+            <div class="progress">
+              <div class="progress-bar progress-bar-primary" id="modal-skill-bar" style="width:0%"></div>
+            </div>
+          </div>
+          
+          <div>
+            <div class="flex-between text-xs mb-1">
+              <span class="text-secondary fw-600">Certification Alignment</span>
+              <span id="modal-cert-score" class="fw-700">0%</span>
+            </div>
+            <div class="progress">
+              <div class="progress-bar progress-bar-success" id="modal-cert-bar" style="width:0%"></div>
+            </div>
+          </div>
+          
+          <div>
+            <div class="flex-between text-xs mb-1">
+              <span class="text-secondary fw-600">Experience & Seniority Fit</span>
+              <span id="modal-exp-score" class="fw-700">0%</span>
+            </div>
+            <div class="progress">
+              <div class="progress-bar progress-bar-warning" id="modal-exp-bar" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 p-3 alert alert-info text-xs" style="margin-bottom:0">
+          <i class="bi bi-info-circle"></i> This score is generated dynamically using a combination of semantic text similarity and weighted regression analysis.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Check authorization (Manager or Admin)
+requireRole('manager', 'admin');
+
+let allLogs = [];
+let roleChartInstance = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadMatchHistory();
+});
+
+async function loadMatchHistory() {
+  showLoading('logs-container');
+  try {
+    const data = await API.get('/match-history');
+    allLogs = data || [];
+    
+    // Parse calculations
+    renderStats(allLogs);
+    populateRoleFilter(allLogs);
+    renderLogsTable(allLogs);
+    renderRoleChart(allLogs);
+  } catch (e) {
+    Toast.error('Failed to load match history: ' + e.message);
+  } finally {
+    hideLoading('logs-container');
+  }
+}
+
+function renderStats(logs) {
+  const total = logs.length;
+  document.getElementById('stat-total-matches').dataset.count = total;
+  animateNumber(document.getElementById('stat-total-matches'), total);
+
+  if (total === 0) {
+    document.getElementById('stat-avg-score').textContent = '0%';
+    document.getElementById('stat-max-score').textContent = '0%';
+    document.getElementById('stat-roles-count').textContent = '0';
+    return;
+  }
+
+  const avg = Math.round(logs.reduce((sum, r) => sum + r.match_score, 0) / total);
+  const max = Math.round(Math.max(...logs.map(r => r.match_score)));
+  const uniqueRoles = new Set(logs.map(r => r.role_id)).size;
+
+  document.getElementById('stat-avg-score').textContent = `${avg}%`;
+  document.getElementById('stat-max-score').textContent = `${max}%`;
+  
+  document.getElementById('stat-roles-count').dataset.count = uniqueRoles;
+  animateNumber(document.getElementById('stat-roles-count'), uniqueRoles);
+}
+
+function populateRoleFilter(logs) {
+  const select = document.getElementById('role-filter');
+  select.innerHTML = '<option value="">All Roles</option>';
+  
+  const roleNames = {};
+  logs.forEach(r => {
+    if (r.role_id && r.role_name) roleNames[r.role_id] = r.role_name;
+  });
+
+  Object.entries(roleNames).forEach(([id, name]) => {
+    select.innerHTML += `<option value="${id}">${name}</option>`;
+  });
+}
+
+function applyFilters() {
+  const roleId = document.getElementById('role-filter').value;
+  const searchVal = document.getElementById('search-filter').value.toLowerCase();
+
+  const filtered = allLogs.filter(log => {
+    const matchesRole = !roleId || log.role_id === parseInt(roleId);
+    const matchesSearch = !searchVal || 
+      (log.employee_name && log.employee_name.toLowerCase().includes(searchVal)) ||
+      (log.role_name && log.role_name.toLowerCase().includes(searchVal));
+    return matchesRole && matchesSearch;
+  });
+
+  renderLogsTable(filtered);
+}
+
+function renderLogsTable(logs) {
+  const container = document.getElementById('logs-container');
+  if (logs.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <div class="empty-state-title">No matching history found</div>
+        <div class="empty-state-desc">Try running a new match simulation or clearing filters.</div>
+      </div>`;
+    return;
+  }
+
+  let html = `
+    <table class="tb-table">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Target Role</th>
+          <th>Match Score</th>
+          <th>Breakdown (S / C / E)</th>
+          <th>Computed At</th>
+          <th style="text-align:right">Action</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  logs.forEach(log => {
+    const formattedDate = new Date(log.computed_at).toLocaleString();
+    const scoreVal = Math.round(log.match_score);
+    const sScore = log.skill_score ? Math.round(log.skill_score) : 0;
+    const cScore = log.cert_score ? Math.round(log.cert_score) : 0;
+    const eScore = log.experience_score ? Math.round(log.experience_score) : 0;
+
+    html += `
+      <tr>
+        <td>
+          <div class="flex gap-2" style="align-items:center">
+            <div class="avatar avatar-sm" style="background:${avatarColor(log.employee_name || 'E')}">
+              ${avatarInitials(log.employee_name || 'E')}
+            </div>
+            <div>
+              <div style="font-weight:600;font-size:13px">${log.employee_name || 'Unknown'}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div style="font-size:13px">${log.role_name || 'General Role'}</div>
+        </td>
+        <td>
+          <span class="badge ${scoreVal >= 80 ? 'badge-success' : scoreVal >= 60 ? 'badge-primary' : scoreVal >= 40 ? 'badge-warning' : 'badge-danger'}">
+            ${scoreVal}%
+          </span>
+        </td>
+        <td>
+          <div style="font-size:11px;color:var(--text-secondary)">
+            <span title="Skill Match">${sScore}%</span> / 
+            <span title="Cert Match">${cScore}%</span> / 
+            <span title="Experience Match">${eScore}%</span>
+          </div>
+        </td>
+        <td>
+          <span style="font-size:11px;color:var(--text-muted)">${formattedDate}</span>
+        </td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost btn-sm" onclick="showBreakdown(${JSON.stringify(log).replace(/"/g, '&quot;')})">
+            <i class="bi bi-eye"></i> Details
+          </button>
+        </td>
+      </tr>`;
+  });
+
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
+
+function showBreakdown(log) {
+  document.getElementById('modal-emp-name').textContent = `${log.employee_name || 'Employee'} Breakdown`;
+  document.getElementById('modal-role-title').textContent = `Target Profile: ${log.role_name || 'Unknown'}`;
+
+  const scoreVal = Math.round(log.match_score);
+  const sScore = log.skill_score ? Math.round(log.skill_score) : 0;
+  const cScore = log.cert_score ? Math.round(log.cert_score) : 0;
+  const eScore = log.experience_score ? Math.round(log.experience_score) : 0;
+
+  // Render score ring
+  createScoreRing('modal-ring-container', scoreVal, 100);
+
+  // Set bars
+  document.getElementById('modal-skill-score').textContent = `${sScore}%`;
+  document.getElementById('modal-skill-bar').style.width = `${sScore}%`;
+
+  document.getElementById('modal-cert-score').textContent = `${cScore}%`;
+  document.getElementById('modal-cert-bar').style.width = `${cScore}%`;
+
+  document.getElementById('modal-exp-score').textContent = `${eScore}%`;
+  document.getElementById('modal-exp-bar').style.width = `${eScore}%`;
+
+  const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+  modal.show();
+}
+
+function renderRoleChart(logs) {
+  // Aggregate scores by role
+  const roleScores = {};
+  logs.forEach(log => {
+    if (log.role_name) {
+      if (!roleScores[log.role_name]) {
+        roleScores[log.role_name] = { sum: 0, count: 0 };
+      }
+      roleScores[log.role_name].sum += log.match_score;
+      roleScores[log.role_name].count += 1;
+    }
+  });
+
+  const labels = Object.keys(roleScores);
+  const data = labels.map(label => Math.round(roleScores[label].sum / roleScores[label].count));
+
+  const ctx = document.getElementById('roleChart');
+  if (!ctx) return;
+
+  if (roleChartInstance) {
+    roleChartInstance.destroy();
+  }
+
+  if (labels.length === 0) {
+    ctx.style.display = 'none';
+    return;
+  }
+  ctx.style.display = 'block';
+
+  roleChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Avg Score (%)',
+        data: data,
+        backgroundColor: 'rgba(99, 102, 241, 0.45)',
+        borderColor: '#6366F1',
+        borderWidth: 1.5,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1E1E2F',
+          borderColor: 'rgba(255,255,255,0.08)',
+          borderWidth: 1,
+          titleColor: '#F1F5F9',
+          bodyColor: '#94A3B8'
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#64748B', font: { size: 10 } }
+        },
+        y: {
+          min: 0,
+          max: 100,
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#64748B', font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+function confirmClearHistory() {
+  if (confirm('Are you sure you want to clear all match history logs? This action cannot be undone.')) {
+    clearHistory();
+  }
+}
+
+async function clearHistory() {
+  try {
+    const res = await API.delete('/match-history');
+    Toast.success(res.message || 'Match history cleared successfully');
+    allLogs = [];
+    renderStats(allLogs);
+    populateRoleFilter(allLogs);
+    renderLogsTable(allLogs);
+    renderRoleChart(allLogs);
+  } catch (e) {
+    Toast.error('Failed to clear history: ' + e.message);
+  }
+}
+</script>
+{% endblock %}

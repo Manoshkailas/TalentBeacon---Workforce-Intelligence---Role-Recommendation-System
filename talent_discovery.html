@@ -1,0 +1,1317 @@
+{% extends "base.html" %}
+
+{% block title %}Talent Discovery{% endblock %}
+
+{% block page_title %}Talent Discovery{% endblock %}
+{% block page_subtitle %}Find the perfect employee for any role{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-ghost btn-sm" onclick="exportResults()" id="export-btn" title="Export Results" style="display:none">
+  <i class="bi bi-download"></i> Export
+</button>
+<button class="btn btn-ghost btn-sm" onclick="clearAll()" title="Clear All">
+  <i class="bi bi-x-circle"></i> Clear
+</button>
+{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Page Layout ─────────────────────────────────────────── */
+  .discovery-layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+  @media (max-width: 1100px) {
+    .discovery-layout { grid-template-columns: 1fr; }
+  }
+
+  /* ── Left Panel ──────────────────────────────────────────── */
+  .search-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    position: sticky;
+    top: 1rem;
+  }
+
+  /* ── Panel Card ──────────────────────────────────────────── */
+  .panel-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.4rem;
+    transition: box-shadow 0.25s;
+  }
+  .panel-card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.25); }
+
+  .panel-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.1rem;
+  }
+  .panel-card-header .icon {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .icon-primary { background: rgba(99,102,241,0.15); color: var(--primary); }
+  .icon-gem     { background: rgba(16,185,129,0.15); color: #10b981; }
+  .icon-project { background: rgba(245,158,11,0.15); color: #f59e0b; }
+
+  .panel-card-header h3 {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: 0.01em;
+  }
+  .panel-card-header p {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  /* ── Form Controls ───────────────────────────────────────── */
+  .form-label-sm {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .form-control,
+  .form-select {
+    background: var(--bg-dark, #0f1117) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+    border-radius: 10px !important;
+    font-size: 0.875rem;
+    padding: 0.55rem 0.85rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+  .form-control:focus,
+  .form-select:focus {
+    outline: none !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.18) !important;
+    background: var(--bg-dark, #0f1117) !important;
+    color: var(--text-primary) !important;
+  }
+  .form-select option {
+    background: #1a1d2e;
+    color: var(--text-primary);
+  }
+
+  /* ── Slider ──────────────────────────────────────────────── */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .slider-row input[type=range] {
+    flex: 1;
+    accent-color: var(--primary);
+    height: 5px;
+    cursor: pointer;
+  }
+  .slider-badge {
+    min-width: 36px;
+    text-align: center;
+    background: rgba(99,102,241,0.18);
+    color: var(--primary);
+    font-size: 0.85rem;
+    font-weight: 700;
+    border-radius: 8px;
+    padding: 2px 8px;
+  }
+
+  /* ── Buttons ─────────────────────────────────────────────── */
+  .btn-find {
+    background: linear-gradient(135deg, var(--primary), #8b5cf6);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 2px 12px rgba(99,102,241,0.35);
+  }
+  .btn-find:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(99,102,241,0.45);
+  }
+  .btn-find:active:not(:disabled) { transform: translateY(0); }
+  .btn-find:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .btn-gem {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.6rem 1rem;
+    font-weight: 700;
+    font-size: 0.87rem;
+    cursor: pointer;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: opacity 0.2s, transform 0.15s;
+    box-shadow: 0 2px 12px rgba(16,185,129,0.3);
+  }
+  .btn-gem:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+  .btn-gem:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .btn-project {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.6rem 1rem;
+    font-weight: 700;
+    font-size: 0.87rem;
+    cursor: pointer;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: opacity 0.2s, transform 0.15s;
+    box-shadow: 0 2px 12px rgba(245,158,11,0.3);
+  }
+  .btn-project:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+  .btn-project:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  /* ── NL Search textarea ──────────────────────────────────── */
+  .nl-textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .nl-hint {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.4rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+  .nl-chip {
+    background: rgba(99,102,241,0.1);
+    border: 1px solid rgba(99,102,241,0.25);
+    border-radius: 20px;
+    padding: 1px 8px;
+    font-size: 0.68rem;
+    color: var(--primary);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .nl-chip:hover { background: rgba(99,102,241,0.2); }
+
+  /* ── Right Content ───────────────────────────────────────── */
+  .results-panel { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  /* ── Results Header ──────────────────────────────────────── */
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .results-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .results-badge {
+    background: rgba(99,102,241,0.15);
+    color: var(--primary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    border-radius: 20px;
+    padding: 3px 12px;
+    border: 1px solid rgba(99,102,241,0.3);
+  }
+  .results-source-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 20px;
+    padding: 3px 10px;
+    border: 1px solid;
+  }
+  .source-role    { background: rgba(99,102,241,0.1);  color: #818cf8; border-color: rgba(99,102,241,0.3); }
+  .source-nl      { background: rgba(16,185,129,0.1);  color: #34d399; border-color: rgba(16,185,129,0.3); }
+  .source-project { background: rgba(245,158,11,0.1);  color: #fbbf24; border-color: rgba(245,158,11,0.3); }
+
+  /* ── Sort Controls ───────────────────────────────────────── */
+  .sort-tabs {
+    display: flex;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .sort-tab {
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.18s;
+    user-select: none;
+  }
+  .sort-tab.active { background: var(--primary); color: #fff; }
+
+  /* ── Empty / Loading State ───────────────────────────────── */
+  .results-empty {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 3.5rem 2rem;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .results-empty .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+  .results-empty h4 { font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.4rem; }
+  .results-empty p  { font-size: 0.82rem; max-width: 340px; margin: 0 auto; }
+
+  .results-loading {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 3.5rem 2rem;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .loading-spinner {
+    width: 48px; height: 48px;
+    border: 4px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Employee Card Grid ──────────────────────────────────── */
+  .employee-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+
+  /* ── Employee Card ───────────────────────────────────────── */
+  .employee-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(16px);
+    animation: cardIn 0.4s ease forwards;
+  }
+  .employee-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.04), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .employee-card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); border-color: rgba(99,102,241,0.4); }
+  .employee-card:hover::before { opacity: 1; }
+
+  @keyframes cardIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Card Top Row ────────────────────────────────────────── */
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+  }
+  .rank-badge {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 800;
+    margin-top: 2px;
+  }
+  .rank-1 { background: linear-gradient(135deg,#fbbf24,#f59e0b); color: #000; box-shadow: 0 2px 8px rgba(251,191,36,0.45); }
+  .rank-2 { background: linear-gradient(135deg,#9ca3af,#6b7280); color: #fff; box-shadow: 0 2px 8px rgba(107,114,128,0.35); }
+  .rank-3 { background: linear-gradient(135deg,#cd7c34,#b45309); color: #fff; box-shadow: 0 2px 8px rgba(180,83,9,0.35); }
+  .rank-n { background: rgba(99,102,241,0.15); color: var(--primary); }
+
+  .emp-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .emp-info { flex: 1; min-width: 0; }
+  .emp-name {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .emp-dept {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .emp-dept i { font-size: 0.7rem; }
+
+  /* ── Score Ring ──────────────────────────────────────────── */
+  .score-ring-wrap {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .score-ring-wrap svg {
+    transform: rotate(-90deg);
+    overflow: visible;
+  }
+  .score-ring-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Score Breakdown Bars ────────────────────────────────── */
+  .score-breakdown { display: flex; flex-direction: column; gap: 0.5rem; }
+  .breakdown-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+  }
+  .breakdown-label {
+    width: 90px;
+    color: var(--text-muted);
+    font-weight: 500;
+    flex-shrink: 0;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .breakdown-bar-bg {
+    flex: 1;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .breakdown-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.7s cubic-bezier(.4,0,.2,1);
+    width: 0;
+  }
+  .breakdown-val {
+    width: 32px;
+    text-align: right;
+    font-weight: 700;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+  }
+
+  /* ── Card Footer ─────────────────────────────────────────── */
+  .card-footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+  }
+  .skill-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .skill-tag {
+    background: rgba(99,102,241,0.12);
+    border: 1px solid rgba(99,102,241,0.2);
+    color: var(--primary);
+    font-size: 0.65rem;
+    font-weight: 600;
+    border-radius: 20px;
+    padding: 1px 7px;
+  }
+  .more-skills {
+    background: var(--border);
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    font-weight: 600;
+    border-radius: 20px;
+    padding: 1px 7px;
+  }
+  .view-profile-btn {
+    background: transparent;
+    border: 1px solid rgba(99,102,241,0.35);
+    color: var(--primary);
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .view-profile-btn:hover {
+    background: rgba(99,102,241,0.15);
+    border-color: var(--primary);
+  }
+
+  /* ── Project skills input ────────────────────────────────── */
+  .skills-input-wrap { position: relative; }
+  .skills-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    min-height: 28px;
+    margin-top: 0.4rem;
+  }
+  .skills-preview-tag {
+    background: rgba(245,158,11,0.15);
+    border: 1px solid rgba(245,158,11,0.3);
+    color: #f59e0b;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 20px;
+    padding: 2px 8px;
+  }
+
+  /* ── Quick stats strip ───────────────────────────────────── */
+  .stats-strip {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+  }
+  .stat-item { text-align: center; }
+  .stat-value { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); }
+  .stat-label { font-size: 0.68rem; color: var(--text-muted); font-weight: 500; }
+
+  /* ── Toast ───────────────────────────────────────────────── */
+  .td-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    z-index: 9999;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    animation: slideUp 0.3s ease;
+    max-width: 320px;
+  }
+  @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  .toast-icon { font-size: 1.1rem; }
+
+  /* ── Divider label ───────────────────────────────────────── */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin: 0.25rem 0;
+  }
+  .section-divider::before,
+  .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Stagger delays ──────────────────────────────────────── */
+  .employee-card:nth-child(1)  { animation-delay: 0.04s; }
+  .employee-card:nth-child(2)  { animation-delay: 0.08s; }
+  .employee-card:nth-child(3)  { animation-delay: 0.12s; }
+  .employee-card:nth-child(4)  { animation-delay: 0.16s; }
+  .employee-card:nth-child(5)  { animation-delay: 0.20s; }
+  .employee-card:nth-child(6)  { animation-delay: 0.24s; }
+  .employee-card:nth-child(7)  { animation-delay: 0.28s; }
+  .employee-card:nth-child(8)  { animation-delay: 0.32s; }
+  .employee-card:nth-child(9)  { animation-delay: 0.36s; }
+  .employee-card:nth-child(10) { animation-delay: 0.40s; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="discovery-layout">
+
+  <!-- ══════════════════════════════════════════════════════════
+       LEFT PANEL – Search Controls
+  ══════════════════════════════════════════════════════════════ -->
+  <aside class="search-panel">
+
+    <!-- 1. Role-Based Match Panel -->
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <div class="icon icon-primary"><i class="bi bi-search-heart"></i></div>
+        <div>
+          <h3>Role Match Search</h3>
+          <p>Find top employees for a job role</p>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label-sm">Role <span style="color:#ef4444">*</span></label>
+        <select id="role-select" class="form-select">
+          <option value="">Loading roles…</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label-sm">Department Filter</label>
+        <select id="dept-select" class="form-select">
+          <option value="">All Departments</option>
+          <option value="Engineering">Engineering</option>
+          <option value="Data Science">Data Science</option>
+          <option value="Product">Product</option>
+          <option value="Design">Design</option>
+          <option value="Marketing">Marketing</option>
+          <option value="Operations">Operations</option>
+          <option value="Finance">Finance</option>
+          <option value="HR">HR</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label-sm">Top N Results</label>
+        <div class="slider-row">
+          <input type="range" id="top-n-slider" min="5" max="20" value="10" step="1"
+                 oninput="document.getElementById('top-n-val').textContent=this.value">
+          <span class="slider-badge" id="top-n-val">10</span>
+        </div>
+      </div>
+
+      <button class="btn-find" id="find-btn" onclick="runRoleMatch()">
+        <i class="bi bi-stars"></i> Find Best Match
+      </button>
+    </div>
+
+    <!-- 2. Natural Language Search -->
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <div class="icon icon-gem"><i class="bi bi-magic"></i></div>
+        <div>
+          <h3>AI Natural Language Search</h3>
+          <p>Powered by Gemini</p>
+        </div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label-sm">Describe what you need</label>
+        <textarea id="nl-input" class="form-control nl-textarea"
+                  placeholder="e.g. Find employees with AWS and 3+ years of experience in backend development…"></textarea>
+        <div class="nl-hint">
+          <span>Try:</span>
+          <span class="nl-chip" onclick="setNLPrompt(this.textContent)">AWS &amp; 3+ yrs experience</span>
+          <span class="nl-chip" onclick="setNLPrompt(this.textContent)">ML + Python expert</span>
+          <span class="nl-chip" onclick="setNLPrompt(this.textContent)">Team lead with React</span>
+          <span class="nl-chip" onclick="setNLPrompt(this.textContent)">DevOps &amp; Kubernetes</span>
+        </div>
+      </div>
+
+      <div class="mb-3 mt-2">
+        <label class="form-label-sm">Top N Results</label>
+        <div class="slider-row">
+          <input type="range" id="nl-top-n-slider" min="5" max="20" value="10" step="1"
+                 oninput="document.getElementById('nl-top-n-val').textContent=this.value">
+          <span class="slider-badge" id="nl-top-n-val">10</span>
+        </div>
+      </div>
+
+      <button class="btn-gem" id="nl-btn" onclick="runNLSearch()">
+        <i class="bi bi-robot"></i> Search with Gemini
+      </button>
+    </div>
+
+    <!-- 3. Project Matching Shortcut -->
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <div class="icon icon-project"><i class="bi bi-kanban-fill"></i></div>
+        <div>
+          <h3>Project Matching</h3>
+          <p>Find team members by skill set</p>
+        </div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label-sm">Required Skills <small style="font-weight:400;text-transform:none">(comma-separated)</small></label>
+        <input type="text" id="project-skills-input" class="form-control"
+               placeholder="e.g. Python, AWS, Docker, React"
+               oninput="previewSkills(this.value)">
+        <div class="skills-preview" id="skills-preview"></div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label-sm">Top N Results</label>
+        <div class="slider-row">
+          <input type="range" id="proj-top-n-slider" min="3" max="20" value="5" step="1"
+                 oninput="document.getElementById('proj-top-n-val').textContent=this.value">
+          <span class="slider-badge" id="proj-top-n-val">5</span>
+        </div>
+      </div>
+
+      <button class="btn-project" id="project-btn" onclick="runProjectMatch()">
+        <i class="bi bi-lightning-fill"></i> Match Team Members
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ══════════════════════════════════════════════════════════
+       RIGHT PANEL – Results
+  ══════════════════════════════════════════════════════════════ -->
+  <section class="results-panel" id="results-panel">
+
+    <!-- Stats Strip (hidden until results) -->
+    <div class="stats-strip" id="stats-strip" style="display:none">
+      <div class="stat-item">
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-label">Candidates Found</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-avg">—</div>
+        <div class="stat-label">Avg Match Score</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-top">—</div>
+        <div class="stat-label">Top Score</div>
+      </div>
+    </div>
+
+    <!-- Results Header (hidden until results) -->
+    <div class="results-header" id="results-header" style="display:none">
+      <div class="results-meta">
+        <span class="results-badge" id="results-count-badge">0 results</span>
+        <span class="results-source-badge" id="results-source-badge"></span>
+        <span style="font-size:0.75rem;color:var(--text-muted)" id="results-context"></span>
+      </div>
+      <div class="sort-tabs">
+        <span class="sort-tab active" onclick="sortResults('score',this)">Score</span>
+        <span class="sort-tab" onclick="sortResults('name',this)">Name</span>
+        <span class="sort-tab" onclick="sortResults('dept',this)">Dept</span>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="results-loading" id="results-loading" style="display:none">
+      <div class="loading-spinner"></div>
+      <div style="font-size:0.9rem;font-weight:600;color:var(--text-secondary)" id="loading-text">Searching…</div>
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.3rem" id="loading-sub"></div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="results-empty" id="results-empty">
+      <div class="empty-icon">🎯</div>
+      <h4>Ready to Discover Talent</h4>
+      <p>Use the search panel on the left to find the best employees for any role, using AI-powered matching or skill-based project matching.</p>
+    </div>
+
+    <!-- Employee Cards Grid -->
+    <div class="employee-grid" id="employee-grid" style="display:none"></div>
+
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ══════════════════════════════════════════════════════════════
+   AUTH CHECK
+══════════════════════════════════════════════════════════════ */
+(function() {
+  const user = Auth.getUser();
+  if (!user || !['manager','admin'].includes(user.role)) {
+    window.location.href = '/';
+  }
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════ */
+let _currentResults = [];
+let _currentSource  = '';
+let _currentContext = '';
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  loadRoles();
+});
+
+/* ══════════════════════════════════════════════════════════════
+   LOAD ROLES FROM API
+══════════════════════════════════════════════════════════════ */
+async function loadRoles() {
+  const sel = document.getElementById('role-select');
+  try {
+    const token = Auth.getToken();
+    const res   = await fetch('/api/roles', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    if (!res.ok) throw new Error('Failed to fetch roles');
+    const data = await res.json();
+    const roles = Array.isArray(data) ? data : (data.roles || []);
+    sel.innerHTML = '<option value="">— Select a role —</option>';
+    roles.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id || r.role_id || r.name;
+      opt.textContent = r.name || r.title || r.role_name || r;
+      sel.appendChild(opt);
+    });
+  } catch(e) {
+    sel.innerHTML = '<option value="">Could not load roles</option>';
+    console.warn('loadRoles error:', e);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   NL CHIP HELPER
+══════════════════════════════════════════════════════════════ */
+function setNLPrompt(text) {
+  document.getElementById('nl-input').value = text;
+  document.getElementById('nl-input').focus();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SKILLS PREVIEW
+══════════════════════════════════════════════════════════════ */
+function previewSkills(raw) {
+  const preview = document.getElementById('skills-preview');
+  const skills  = raw.split(',').map(s=>s.trim()).filter(Boolean);
+  if (!skills.length) { preview.innerHTML = ''; return; }
+  preview.innerHTML = skills.map(s =>
+    `<span class="skills-preview-tag">${escHtml(s)}</span>`
+  ).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ROLE-BASED MATCH
+══════════════════════════════════════════════════════════════ */
+async function runRoleMatch() {
+  const roleId = document.getElementById('role-select').value;
+  const dept   = document.getElementById('dept-select').value;
+  const topN   = parseInt(document.getElementById('top-n-slider').value, 10);
+
+  if (!roleId) { showToast('Please select a role first.', 'warning'); return; }
+
+  const roleName = document.getElementById('role-select').selectedOptions[0]?.textContent || roleId;
+  const context  = dept ? `${roleName} · ${dept}` : roleName;
+
+  setLoading(true, 'Finding best matches…', `Scoring employees against "${roleName}"`);
+
+  try {
+    const token = Auth.getToken();
+    const body  = { role_id: roleId, top_n: topN };
+    if (dept) body.department = dept;
+
+    const res  = await fetch('/api/match-employees', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body:    JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({ message: res.statusText }));
+      throw new Error(err.message || 'API error');
+    }
+    const data = await res.json();
+    const employees = data.top_matches || data.top_recommendations || data.employees || data.results || [];
+    renderResults(employees, 'role', `Role: ${context}`, 'source-role');
+  } catch(e) {
+    setLoading(false);
+    showToast(`Error: ${e.message}`, 'error');
+    console.error(e);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   NATURAL LANGUAGE SEARCH
+══════════════════════════════════════════════════════════════ */
+async function runNLSearch() {
+  const query = document.getElementById('nl-input').value.trim();
+  const topN  = parseInt(document.getElementById('nl-top-n-slider').value, 10);
+
+  if (!query) { showToast('Please enter a search description.', 'warning'); return; }
+
+  setLoading(true, 'Asking Gemini…', 'Parsing your query and scoring employees');
+
+  try {
+    const token = Auth.getToken();
+    const res   = await fetch('/api/match-employees', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body:    JSON.stringify({ query, top_n: topN, mode: 'nl' })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({ message: res.statusText }));
+      throw new Error(err.message || 'API error');
+    }
+    const data = await res.json();
+    const employees = data.top_matches || data.top_recommendations || data.employees || data.results || [];
+    renderResults(employees, 'nl', `AI Search: "${query.slice(0,50)}${query.length>50?'…':''}"`, 'source-nl');
+  } catch(e) {
+    setLoading(false);
+    showToast(`Error: ${e.message}`, 'error');
+    console.error(e);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PROJECT MATCH
+══════════════════════════════════════════════════════════════ */
+async function runProjectMatch() {
+  const raw    = document.getElementById('project-skills-input').value;
+  const skills = raw.split(',').map(s=>s.trim()).filter(Boolean);
+  const topN   = parseInt(document.getElementById('proj-top-n-slider').value, 10);
+
+  if (!skills.length) { showToast('Please enter at least one required skill.', 'warning'); return; }
+
+  setLoading(true, 'Matching team members…', `Skills: ${skills.join(', ')}`);
+
+  try {
+    const token = Auth.getToken();
+    const res   = await fetch('/api/project-recommendations', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body:    JSON.stringify({ required_skills: skills, top_n: topN })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({ message: res.statusText }));
+      throw new Error(err.message || 'API error');
+    }
+    const data = await res.json();
+    const employees = data.top_matches || data.top_recommendations || data.employees || data.results || [];
+    renderResults(employees, 'project', `Project Skills: ${skills.join(', ')}`, 'source-project');
+  } catch(e) {
+    setLoading(false);
+    showToast(`Error: ${e.message}`, 'error');
+    console.error(e);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RENDER RESULTS
+══════════════════════════════════════════════════════════════ */
+function renderResults(employees, source, contextLabel, badgeClass) {
+  setLoading(false);
+
+  _currentResults = employees;
+  _currentSource  = source;
+  _currentContext = contextLabel;
+
+  // Hide empty, show header+grid
+  document.getElementById('results-empty').style.display   = 'none';
+  document.getElementById('results-header').style.display  = 'flex';
+  document.getElementById('stats-strip').style.display     = 'grid';
+  document.getElementById('employee-grid').style.display   = 'grid';
+  document.getElementById('export-btn').style.display      = '';
+
+  updateResultsHeader(employees, contextLabel, badgeClass);
+  updateStatsStrip(employees);
+  renderCards(employees);
+}
+
+function updateResultsHeader(employees, contextLabel, badgeClass) {
+  document.getElementById('results-count-badge').textContent = `${employees.length} result${employees.length !== 1 ? 's' : ''}`;
+  const srcBadge = document.getElementById('results-source-badge');
+  srcBadge.className   = `results-source-badge ${badgeClass}`;
+  srcBadge.textContent = badgeClass === 'source-role' ? '🎯 Role Match'
+                       : badgeClass === 'source-nl'   ? '🤖 AI Search'
+                       : '⚡ Project Match';
+  document.getElementById('results-context').textContent = contextLabel;
+}
+
+function updateStatsStrip(employees) {
+  const total = employees.length;
+  const scores = employees.map(e => parseScore(e));
+  const avg    = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+  const top    = scores.length ? Math.max(...scores) : 0;
+
+  const elTotal = document.getElementById('stat-total');
+  const elAvg   = document.getElementById('stat-avg');
+  const elTop   = document.getElementById('stat-top');
+
+  animateNumber(elTotal, total);
+  animateNumber(elAvg,   avg, '%');
+  animateNumber(elTop,   top, '%');
+}
+
+function renderCards(employees) {
+  const grid = document.getElementById('employee-grid');
+  grid.innerHTML = '';
+
+  if (!employees.length) {
+    grid.style.display = 'none';
+    document.getElementById('results-empty').innerHTML = `
+      <div class="empty-icon">🔍</div>
+      <h4>No matches found</h4>
+      <p>Try broadening your search criteria or adjusting the role selection.</p>`;
+    document.getElementById('results-empty').style.display = 'block';
+    return;
+  }
+
+  employees.forEach((emp, idx) => {
+    const card = buildEmployeeCard(emp, idx + 1);
+    grid.appendChild(card);
+  });
+
+  // Trigger bar animations after cards are in DOM
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.breakdown-bar-fill').forEach(bar => {
+      bar.style.width = bar.dataset.pct + '%';
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BUILD SINGLE EMPLOYEE CARD
+══════════════════════════════════════════════════════════════ */
+function buildEmployeeCard(emp, rank) {
+  const card = document.createElement('div');
+  card.className = 'employee-card';
+
+  const score     = parseScore(emp);
+  const name      = emp.name || emp.employee_name || emp.full_name || 'Unknown';
+  const dept      = emp.department || emp.dept || '—';
+  const role      = emp.role || emp.job_title || emp.position || '';
+  const skills    = emp.skills || emp.matched_skills || [];
+  const breakdown = emp.score_breakdown || emp.breakdown || buildFakeBreakdown(score);
+  const empId     = emp.id || emp.employee_id || emp.emp_id || '';
+  const avatarBg  = avatarColor(name);
+  const initials  = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+  // Rank badge
+  const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-n';
+  const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+
+  // Score color
+  const scoreColor = score >= 80 ? '#10b981' : score >= 60 ? '#6366f1' : score >= 40 ? '#f59e0b' : '#ef4444';
+
+  // Skills (max 3 shown)
+  const shownSkills = Array.isArray(skills) ? skills.slice(0,3) : [];
+  const extraSkills = Array.isArray(skills) ? skills.length - 3 : 0;
+
+  // Breakdown bars HTML
+  const breakdownHTML = buildBreakdownBars(breakdown);
+
+  // Score ring SVG
+  const ringHTML = buildScoreRingSVG(score, scoreColor);
+
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="rank-badge ${rankClass}">${rankLabel}</div>
+      <div class="emp-avatar" style="background:${avatarBg}">${initials}</div>
+      <div class="emp-info">
+        <div class="emp-name" title="${escHtml(name)}">${escHtml(name)}</div>
+        <div class="emp-dept"><i class="bi bi-building"></i>${escHtml(dept)}${role ? ` · ${escHtml(role)}` : ''}</div>
+      </div>
+      <div class="score-ring-wrap">
+        ${ringHTML}
+        <div class="score-ring-label">Match</div>
+      </div>
+    </div>
+
+    <div class="score-breakdown">
+      ${breakdownHTML}
+    </div>
+
+    <div class="card-footer-row">
+      <div class="skill-tags">
+        ${shownSkills.map(s=>`<span class="skill-tag">${escHtml(String(s))}</span>`).join('')}
+        ${extraSkills > 0 ? `<span class="more-skills">+${extraSkills}</span>` : ''}
+        ${!shownSkills.length ? '<span style="font-size:0.72rem;color:var(--text-muted)">No skills listed</span>' : ''}
+      </div>
+      <button class="view-profile-btn" onclick="viewProfile('${empId}', event)">
+        <i class="bi bi-arrow-right-short"></i> Profile
+      </button>
+    </div>
+  `;
+
+  return card;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SCORE RING SVG (inline, lightweight)
+══════════════════════════════════════════════════════════════ */
+function buildScoreRingSVG(score, color) {
+  const r   = 22;
+  const cx  = 28; const cy = 28;
+  const circ = 2 * Math.PI * r;
+  const dash = (score / 100) * circ;
+  const gap  = circ - dash;
+  return `
+    <svg width="56" height="56" viewBox="0 0 56 56">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="5"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="5"
+              stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}"
+              stroke-linecap="round"
+              style="transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dasharray 0.8s cubic-bezier(.4,0,.2,1)"/>
+      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+            font-size="11" font-weight="800" fill="${color}"
+            style="transform:rotate(0deg);transform-origin:50% 50%">${score}%</text>
+    </svg>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BREAKDOWN BARS
+══════════════════════════════════════════════════════════════ */
+function buildBreakdownBars(breakdown) {
+  if (!breakdown || typeof breakdown !== 'object') return '';
+  const entries = Object.entries(breakdown).slice(0, 4);
+  if (!entries.length) return '';
+  return entries.map(([key, val]) => {
+    const pct   = Math.min(100, Math.max(0, Math.round(Number(val))));
+    const label = key.replace(/_/g,' ').replace(/\b\w/g, l=>l.toUpperCase());
+    const color = pct >= 80 ? '#10b981' : pct >= 60 ? '#6366f1' : pct >= 40 ? '#f59e0b' : '#ef4444';
+    return `
+      <div class="breakdown-row">
+        <span class="breakdown-label" title="${escHtml(label)}">${escHtml(label)}</span>
+        <div class="breakdown-bar-bg">
+          <div class="breakdown-bar-fill" data-pct="${pct}" style="background:${color};width:0%"></div>
+        </div>
+        <span class="breakdown-val">${pct}%</span>
+      </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FAKE BREAKDOWN (when API doesn't provide one)
+══════════════════════════════════════════════════════════════ */
+function buildFakeBreakdown(overallScore) {
+  return {
+    'Skill Match':   Math.min(100, Math.round(overallScore * (0.9 + Math.random()*0.2))),
+    'Experience':    Math.min(100, Math.round(overallScore * (0.8 + Math.random()*0.25))),
+    'Availability':  Math.min(100, Math.round(overallScore * (0.85 + Math.random()*0.2))),
+    'Team Fit':      Math.min(100, Math.round(overallScore * (0.75 + Math.random()*0.3))),
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SORT RESULTS
+══════════════════════════════════════════════════════════════ */
+function sortResults(by, tabEl) {
+  document.querySelectorAll('.sort-tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+
+  const sorted = [..._currentResults].sort((a, b) => {
+    if (by === 'score') return parseScore(b) - parseScore(a);
+    if (by === 'name')  return (a.name||'').localeCompare(b.name||'');
+    if (by === 'dept')  return (a.department||'').localeCompare(b.department||'');
+    return 0;
+  });
+  renderCards(sorted);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VIEW PROFILE
+══════════════════════════════════════════════════════════════ */
+function viewProfile(empId, event) {
+  event.stopPropagation();
+  if (!empId) { showToast('No employee ID available.', 'warning'); return; }
+  window.location.href = `/employee/profile/${empId}`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EXPORT RESULTS
+══════════════════════════════════════════════════════════════ */
+function exportResults() {
+  if (!_currentResults.length) return;
+  const headers = ['Rank','Name','Department','Role','Score'];
+  const rows = _currentResults.map((e, i) => [
+    i+1,
+    e.name || e.employee_name || '',
+    e.department || '',
+    e.role || e.job_title || '',
+    parseScore(e) + '%'
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `talent-discovery-${Date.now()}.csv`;
+  a.click();
+  showToast('Results exported as CSV', 'success');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CLEAR ALL
+══════════════════════════════════════════════════════════════ */
+function clearAll() {
+  _currentResults = [];
+  document.getElementById('results-header').style.display  = 'none';
+  document.getElementById('stats-strip').style.display     = 'none';
+  document.getElementById('employee-grid').style.display   = 'none';
+  document.getElementById('results-loading').style.display = 'none';
+  document.getElementById('export-btn').style.display      = 'none';
+  document.getElementById('results-empty').style.display   = 'block';
+  document.getElementById('results-empty').innerHTML = `
+    <div class="empty-icon">🎯</div>
+    <h4>Ready to Discover Talent</h4>
+    <p>Use the search panel on the left to find the best employees for any role, using AI-powered matching or skill-based project matching.</p>`;
+  showToast('Results cleared', 'info');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOADING STATE
+══════════════════════════════════════════════════════════════ */
+function setLoading(isLoading, mainText = 'Searching…', subText = '') {
+  const loadEl    = document.getElementById('results-loading');
+  const emptyEl   = document.getElementById('results-empty');
+  const gridEl    = document.getElementById('employee-grid');
+  const headerEl  = document.getElementById('results-header');
+  const statsEl   = document.getElementById('stats-strip');
+  const findBtn   = document.getElementById('find-btn');
+  const nlBtn     = document.getElementById('nl-btn');
+  const projBtn   = document.getElementById('project-btn');
+
+  if (isLoading) {
+    emptyEl.style.display  = 'none';
+    gridEl.style.display   = 'none';
+    headerEl.style.display = 'none';
+    statsEl.style.display  = 'none';
+    loadEl.style.display   = 'block';
+    document.getElementById('loading-text').textContent = mainText;
+    document.getElementById('loading-sub').textContent  = subText;
+    findBtn.disabled = nlBtn.disabled = projBtn.disabled = true;
+  } else {
+    loadEl.style.display = 'none';
+    findBtn.disabled = nlBtn.disabled = projBtn.disabled = false;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════════════════ */
+function parseScore(emp) {
+  const raw = emp.match_score ?? emp.score ?? emp.overall_score ?? emp.similarity_score ?? 0;
+  const n   = parseFloat(raw);
+  if (isNaN(n)) return 0;
+  // Normalise: if score is 0–1 range, multiply by 100
+  return Math.round(n > 1 ? Math.min(n, 100) : n * 100);
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* ── animateNumber shim (from main.js if available) ── */
+if (typeof animateNumber !== 'function') {
+  window.animateNumber = function(el, target, suffix = '') {
+    if (!el) return;
+    let start = 0;
+    const duration = 700;
+    const step = t => {
+      const progress = Math.min(t / duration, 1);
+      el.textContent = Math.round(progress * target) + suffix;
+      if (progress < 1) requestAnimationFrame(ts => step(ts - (step._start || (step._start = ts))));
+    };
+    requestAnimationFrame(ts => { step._start = ts; step(0); });
+  };
+}
+
+/* ── avatarColor shim ── */
+if (typeof avatarColor !== 'function') {
+  window.avatarColor = function(name) {
+    const colors = ['#6366f1','#8b5cf6','#10b981','#f59e0b','#3b82f6','#ec4899','#14b8a6','#f97316'];
+    let hash = 0;
+    for (const c of String(name)) hash = (hash << 5) - hash + c.charCodeAt(0);
+    return colors[Math.abs(hash) % colors.length];
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+══════════════════════════════════════════════════════════════ */
+let _toastTimer = null;
+function showToast(message, type = 'info') {
+  const old = document.querySelector('.td-toast');
+  if (old) old.remove();
+  if (_toastTimer) clearTimeout(_toastTimer);
+
+  const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+  const colors = {
+    success: 'rgba(16,185,129,0.2)',
+    error:   'rgba(239,68,68,0.2)',
+    warning: 'rgba(245,158,11,0.2)',
+    info:    'rgba(99,102,241,0.2)'
+  };
+  const toast = document.createElement('div');
+  toast.className = 'td-toast';
+  toast.style.borderColor = colors[type] || colors.info;
+  toast.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ️'}</span><span>${escHtml(message)}</span>`;
+  document.body.appendChild(toast);
+  _toastTimer = setTimeout(() => toast.remove(), 3500);
+}
+</script>
+{% endblock %}

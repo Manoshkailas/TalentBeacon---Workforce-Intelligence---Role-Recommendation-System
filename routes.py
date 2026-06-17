@@ -1,139 +1,122 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
 from backend.extensions import db
-from backend.models import Role, RoleSkill, Skill
+from backend.models import Skill
 
-roles_bp = Blueprint('roles', __name__)
+skills_bp = Blueprint('skills', __name__)
 
 
-@roles_bp.route('', methods=['GET'])
+@skills_bp.route('', methods=['GET'])
 @jwt_required()
-def list_roles():
-    """List all active roles."""
-    roles = Role.query.filter_by(is_active=True).all()
-    return jsonify([r.to_dict() for r in roles]), 200
+def list_skills():
+    """List all skills with optional filters."""
+    category = request.args.get('category')
+    search = request.args.get('search')
+
+    query = Skill.query.filter_by(is_active=True)
+    if category:
+        query = query.filter_by(category=category)
+    if search:
+        query = query.filter(Skill.name.ilike(f'%{search}%'))
+
+    skills = query.order_by(Skill.category, Skill.name).all()
+    return jsonify([s.to_dict() for s in skills]), 200
 
 
-@roles_bp.route('/<int:role_id>', methods=['GET'])
+@skills_bp.route('/categories', methods=['GET'])
 @jwt_required()
-def get_role(role_id):
-    """Get a role with all required/desired skills."""
-    role = Role.query.get_or_404(role_id)
-    return jsonify(role.to_dict(include_skills=True)), 200
+def get_categories():
+    cats = db.session.query(Skill.category).distinct().all()
+    return jsonify([c[0] for c in cats if c[0]]), 200
 
 
-@roles_bp.route('', methods=['POST'])
+@skills_bp.route('/<int:skill_id>', methods=['GET'])
 @jwt_required()
-def create_role():
-    """Create a new job role (admin only)."""
+def get_skill(skill_id):
+    skill = Skill.query.get_or_404(skill_id)
+    return jsonify(skill.to_dict()), 200
+
+
+@skills_bp.route('', methods=['POST'])
+@jwt_required()
+def create_skill():
+    """Create a new skill (admin only)."""
     claims = get_jwt()
     if claims.get('role') != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
 
     data = request.get_json()
     name = data.get('name', '').strip()
+    category = data.get('category', 'technical')
+
     if not name:
-        return jsonify({'error': 'Role name required'}), 400
+        return jsonify({'error': 'Skill name required'}), 400
 
-    if Role.query.filter_by(name=name).first():
-        return jsonify({'error': 'Role already exists'}), 409
+    if category not in ['technical', 'analytics', 'soft', 'domain']:
+        return jsonify({'error': 'Invalid category'}), 400
 
-    role = Role(
-        name=name,
-        description=data.get('description'),
-        department=data.get('department'),
-        seniority_level=data.get('seniority_level', 'mid'),
-    )
-    db.session.add(role)
-    db.session.flush()
+    if Skill.query.filter_by(name=name).first():
+        return jsonify({'error': 'Skill already exists'}), 409
 
-    # Add skills if provided
-    for skill_data in data.get('skills', []):
-        skill_id = skill_data.get('skill_id')
-        if skill_id and Skill.query.get(skill_id):
-            rs = RoleSkill(
-                role_id=role.id,
-                skill_id=skill_id,
-                requirement_type=skill_data.get('requirement_type', 'required'),
-                min_level=skill_data.get('min_level', 'intermediate'),
-                weight=skill_data.get('weight', 1.0),
-            )
-            db.session.add(rs)
-
+    skill = Skill(name=name, category=category, description=data.get('description'))
+    db.session.add(skill)
     db.session.commit()
-    return jsonify({'message': 'Role created', 'role': role.to_dict(include_skills=True)}), 201
+
+    return jsonify({'message': 'Skill created', 'skill': skill.to_dict()}), 201
 
 
-@roles_bp.route('/<int:role_id>', methods=['PUT'])
+@skills_bp.route('/<int:skill_id>', methods=['PUT'])
 @jwt_required()
-def update_role(role_id):
-    """Update a role (admin only)."""
+def update_skill(skill_id):
+    """Update a skill (admin only)."""
     claims = get_jwt()
     if claims.get('role') != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
 
-    role = Role.query.get_or_404(role_id)
+    skill = Skill.query.get_or_404(skill_id)
     data = request.get_json()
 
-    for field in ['name', 'description', 'department', 'seniority_level']:
-        if field in data:
-            setattr(role, field, data[field])
-
+    if 'name' in data:
+        skill.name = data['name']
+    if 'category' in data:
+        skill.category = data['category']
+    if 'description' in data:
+        skill.description = data['description']
     if 'is_active' in data:
-        role.is_active = data['is_active']
+        skill.is_active = data['is_active']
 
     db.session.commit()
-    return jsonify({'message': 'Role updated', 'role': role.to_dict()}), 200
+    return jsonify({'message': 'Skill updated', 'skill': skill.to_dict()}), 200
 
 
-@roles_bp.route('/<int:role_id>/skills', methods=['POST'])
+@skills_bp.route('/<int:skill_id>', methods=['DELETE'])
 @jwt_required()
-def add_role_skill(role_id):
-    """Add a skill requirement to a role (admin only)."""
+def delete_skill(skill_id):
+    """Soft-delete a skill (admin only)."""
     claims = get_jwt()
     if claims.get('role') != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
 
-    role = Role.query.get_or_404(role_id)
-    data = request.get_json()
-    skill_id = data.get('skill_id')
-
-    if not skill_id:
-        return jsonify({'error': 'skill_id required'}), 400
-
-    Skill.query.get_or_404(skill_id)
-
-    # Check if already exists
-    existing = RoleSkill.query.filter_by(role_id=role_id, skill_id=skill_id).first()
-    if existing:
-        existing.requirement_type = data.get('requirement_type', existing.requirement_type)
-        existing.min_level = data.get('min_level', existing.min_level)
-        existing.weight = data.get('weight', existing.weight)
-        db.session.commit()
-        return jsonify({'message': 'Role skill updated', 'role_skill': existing.to_dict()}), 200
-
-    rs = RoleSkill(
-        role_id=role_id,
-        skill_id=skill_id,
-        requirement_type=data.get('requirement_type', 'required'),
-        min_level=data.get('min_level', 'intermediate'),
-        weight=data.get('weight', 1.0),
-    )
-    db.session.add(rs)
+    skill = Skill.query.get_or_404(skill_id)
+    skill.is_active = False
     db.session.commit()
+    return jsonify({'message': 'Skill deactivated'}), 200
 
-    return jsonify({'message': 'Role skill added', 'role_skill': rs.to_dict()}), 201
 
-
-@roles_bp.route('/<int:role_id>/skills/<int:skill_id>', methods=['DELETE'])
+@skills_bp.route('/stats', methods=['GET'])
 @jwt_required()
-def remove_role_skill(role_id, skill_id):
-    """Remove a skill from a role (admin only)."""
-    claims = get_jwt()
-    if claims.get('role') != 'admin':
-        return jsonify({'error': 'Admin access required'}), 403
+def skill_stats():
+    """Skill distribution stats across employees."""
+    from backend.models import EmployeeSkill
+    stats = db.session.query(
+        Skill.name, Skill.category,
+        db.func.count(EmployeeSkill.id).label('employee_count')
+    ).join(EmployeeSkill).group_by(Skill.id).order_by(
+        db.desc('employee_count')
+    ).limit(20).all()
 
-    rs = RoleSkill.query.filter_by(role_id=role_id, skill_id=skill_id).first_or_404()
-    db.session.delete(rs)
-    db.session.commit()
-    return jsonify({'message': 'Role skill removed'}), 200
+    return jsonify([{
+        'skill': s.name,
+        'category': s.category,
+        'employee_count': s.employee_count
+    } for s in stats]), 200

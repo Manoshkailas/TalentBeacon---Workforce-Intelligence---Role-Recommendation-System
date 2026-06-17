@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Reports Center{% endblock %}
+{% block page_subtitle %}Generate and export talent intelligence reports{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+  <!-- Employee Report -->
+  <div class="card animate-in">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-person-badge-fill" style="color:var(--primary)"></i> Employee Report</span>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label class="form-label">Employee</label>
+        <select class="form-select" id="emp-report-select">
+          <option value="">Select employee...</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Format</label>
+        <div style="display:flex;gap:8px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary);font-size:13px">
+            <input type="radio" name="emp-fmt" value="pdf" checked style="accent-color:var(--primary)"/> PDF
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary);font-size:13px">
+            <input type="radio" name="emp-fmt" value="excel" style="accent-color:var(--primary)"/> Excel
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary);font-size:13px">
+            <input type="radio" name="emp-fmt" value="csv" style="accent-color:var(--primary)"/> CSV
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-primary w-100" onclick="downloadEmployeeReport()">
+        <i class="bi bi-download"></i> Download Report
+      </button>
+    </div>
+  </div>
+
+  <!-- Organization Report -->
+  <div class="card animate-in animate-in-delay-1">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-building" style="color:var(--success)"></i> Organization Report</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
+        Organization-wide talent availability, skill distribution, and workforce analytics.
+      </p>
+      <div class="mb-3">
+        <label class="form-label">Format</label>
+        <div style="display:flex;gap:8px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary);font-size:13px">
+            <input type="radio" name="org-fmt" value="json" checked style="accent-color:var(--primary)"/> View
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary);font-size:13px">
+            <input type="radio" name="org-fmt" value="excel" style="accent-color:var(--primary)"/> Excel
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary);font-size:13px">
+            <input type="radio" name="org-fmt" value="csv" style="accent-color:var(--primary)"/> CSV
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-primary w-100" onclick="downloadOrgReport()">
+        <i class="bi bi-graph-up-arrow"></i> Generate Org Report
+      </button>
+    </div>
+  </div>
+
+  <!-- Team Report -->
+  <div class="card animate-in animate-in-delay-2">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-people-fill" style="color:var(--accent)"></i> Team Skill Gap Report</span>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label class="form-label">Department</label>
+        <select class="form-select" id="dept-report-select">
+          <option value="">Select department...</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Target Role (optional)</label>
+        <select class="form-select" id="role-report-select">
+          <option value="">Any role...</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Format</label>
+        <div style="display:flex;gap:8px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary);font-size:13px">
+            <input type="radio" name="team-fmt" value="json" checked style="accent-color:var(--primary)"/> View
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary);font-size:13px">
+            <input type="radio" name="team-fmt" value="csv" style="accent-color:var(--primary)"/> CSV
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-primary w-100" onclick="downloadTeamReport()">
+        <i class="bi bi-bar-chart-fill"></i> Generate Team Report
+      </button>
+    </div>
+  </div>
+
+  <!-- Workforce Readiness Report -->
+  <div class="card animate-in animate-in-delay-3">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-speedometer2" style="color:var(--warning)"></i> Workforce Readiness Report</span>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label class="form-label">Target Role</label>
+        <select class="form-select" id="readiness-role-select">
+          <option value="">Select role...</option>
+        </select>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted)">
+        Generates readiness scores for all employees against the selected role.
+      </p>
+      <button class="btn btn-primary w-100 mt-3" onclick="downloadReadinessReport()">
+        <i class="bi bi-download"></i> Download Readiness Report
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Report Preview -->
+<div class="card mt-4 animate-in" id="report-preview" style="display:none">
+  <div class="card-header">
+    <span class="card-title">Report Preview</span>
+    <button class="btn btn-ghost btn-sm" onclick="document.getElementById('report-preview').style.display='none'">✕</button>
+  </div>
+  <div class="card-body" id="report-preview-content"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+requireAuth();
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const [emps, depts, roles] = await Promise.all([
+      API.get('/employees?per_page=100'),
+      API.get('/employees/departments'),
+      API.get('/roles'),
+    ]);
+
+    const empSel = document.getElementById('emp-report-select');
+    emps.employees.forEach(e => empSel.innerHTML += `<option value="${e.id}">${e.name} (${e.department})</option>`);
+
+    const deptSel = document.getElementById('dept-report-select');
+    depts.forEach(d => deptSel.innerHTML += `<option value="${d}">${d}</option>`);
+
+    ['role-report-select','readiness-role-select'].forEach(id => {
+      const sel = document.getElementById(id);
+      roles.forEach(r => sel.innerHTML += `<option value="${r.id}">${r.name}</option>`);
+    });
+  } catch (e) { Toast.error('Failed to load options'); }
+});
+
+async function downloadEmployeeReport() {
+  const empId = document.getElementById('emp-report-select').value;
+  const fmt   = document.querySelector('input[name="emp-fmt"]:checked').value;
+  if (!empId) { Toast.warning('Please select an employee'); return; }
+
+  if (fmt === 'pdf' || fmt === 'excel' || fmt === 'csv') {
+    window.open(`/api/reports/employee/${empId}?format=${fmt}`, '_blank');
+  }
+  Toast.success('Report download started');
+}
+
+async function downloadOrgReport() {
+  const fmt = document.querySelector('input[name="org-fmt"]:checked').value;
+  if (fmt === 'json') {
+    try {
+      const data = await API.get('/reports/organization');
+      const preview = document.getElementById('report-preview');
+      const content = document.getElementById('report-preview-content');
+      preview.style.display = 'block';
+      content.innerHTML = `
+        <div class="grid-4 mb-4">
+          <div class="stat-card indigo"><div class="stat-icon indigo"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-info"><div class="stat-value">${data.summary.total_employees}</div><div class="stat-label">Total Employees</div></div></div>
+          <div class="stat-card cyan"><div class="stat-icon cyan"><i class="bi bi-stars"></i></div>
+            <div class="stat-info"><div class="stat-value">${data.summary.total_skills}</div><div class="stat-label">Skills</div></div></div>
+          <div class="stat-card purple"><div class="stat-icon purple"><i class="bi bi-briefcase-fill"></i></div>
+            <div class="stat-info"><div class="stat-value">${data.summary.total_roles}</div><div class="stat-label">Roles</div></div></div>
+        </div>
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:12px">Top Skills by Adoption</h3>
+        ${data.top_skills.slice(0,10).map(s => `
+          <div class="flex-between mb-2">
+            <span style="font-size:13px;color:var(--text-secondary)">${s.skill} <span class="badge badge-muted">${s.category}</span></span>
+            <span style="font-size:13px;font-weight:600">${s.employee_count} employees</span>
+          </div>
+          <div class="progress mb-3">
+            <div class="progress-bar progress-bar-primary" style="width:${(s.employee_count/data.summary.total_employees*100).toFixed(0)}%"></div>
+          </div>`).join('')}`;
+      preview.scrollIntoView({ behavior: 'smooth' });
+    } catch (e) { Toast.error('Failed to load report: ' + e.message); }
+  } else {
+    window.open(`/api/reports/organization?format=${fmt}`, '_blank');
+    Toast.success('Report download started');
+  }
+}
+
+async function downloadTeamReport() {
+  const dept   = document.getElementById('dept-report-select').value;
+  const roleId = document.getElementById('role-report-select').value;
+  const fmt    = document.querySelector('input[name="team-fmt"]:checked').value;
+  if (!dept) { Toast.warning('Please select a department'); return; }
+
+  try {
+    const data = await API.post('/reports/team', {
+      department: dept, role_id: roleId ? parseInt(roleId) : null, format: fmt
+    });
+
+    if (fmt === 'json') {
+      const preview = document.getElementById('report-preview');
+      preview.style.display = 'block';
+      document.getElementById('report-preview-content').innerHTML = `
+        <h3 style="margin-bottom:12px">${dept} Department — ${data.total_employees} Employees</h3>
+        <table class="tb-table">
+          <thead><tr><th>Employee</th><th>Designation</th><th>Skills</th></tr></thead>
+          <tbody>${data.employees.map(e => `<tr>
+            <td style="font-weight:500">${e.name}</td>
+            <td>${e.designation}</td>
+            <td>${(e.skills||[]).length} skills</td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+    }
+    Toast.success('Team report generated');
+  } catch (e) { Toast.error('Failed: ' + e.message); }
+}
+
+async function downloadReadinessReport() {
+  const roleId = document.getElementById('readiness-role-select').value;
+  if (!roleId) { Toast.warning('Please select a role'); return; }
+
+  try {
+    const data = await API.post('/readiness-score/bulk', { role_id: parseInt(roleId) });
+    const rows = [['Name','Department','Score','Status','Skills%','Certs%','Exp%','Learning%']];
+    data.results.forEach(r => rows.push([r.employee_name,r.department,r.score,r.label,
+      r.components.skills,r.components.certifications,r.components.experience,r.components.learning]));
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = 'readiness_report.csv'; a.click();
+    Toast.success('Readiness report downloaded');
+  } catch (e) { Toast.error('Failed: ' + e.message); }
+}
+</script>
+{% endblock %}

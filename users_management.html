@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Users Management{% endblock %}
+{% block page_title %}User Management{% endblock %}
+{% block page_subtitle %}Manage platform access and roles{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary btn-sm" onclick="openCreateUser()">
+  <i class="bi bi-person-plus-fill"></i> Add User
+</button>
+{% endblock %}
+
+{% block content %}
+<div id="auth-check"></div>
+
+<div class="card animate-in">
+  <div class="card-header">
+    <span class="card-title">All Users</span>
+    <div class="flex gap-2">
+      <select class="form-select" id="role-filter" style="width:140px" onchange="filterUsers()">
+        <option value="">All Roles</option>
+        <option value="admin">Admin</option>
+        <option value="manager">Manager</option>
+        <option value="employee">Employee</option>
+      </select>
+    </div>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="tb-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Role</th>
+          <th>Employee</th>
+          <th>Status</th>
+          <th>Last Login</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="users-tbody">
+        <tr><td colspan="6"><div class="flex-center" style="padding:40px"><div class="spinner"></div></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Create/Edit User Modal -->
+<div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="width:480px;max-width:90vw">
+    <div class="card-header">
+      <span class="card-title" id="modal-title">Create User</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="card-body">
+      <input type="hidden" id="user-id"/>
+      <div class="mb-3">
+        <label class="form-label">Email *</label>
+        <input class="form-control" id="user-email" type="email" placeholder="user@talentbeacon.com"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Password <span id="pw-hint" style="font-size:11px;color:var(--text-muted)">(leave blank to keep current)</span></label>
+        <input class="form-control" id="user-pw" type="password" placeholder="Min 6 characters"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Role *</label>
+        <select class="form-select" id="user-role">
+          <option value="employee">Employee</option>
+          <option value="manager">Manager</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Link to Employee</label>
+        <select class="form-select" id="user-emp-id">
+          <option value="">No employee linked</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary flex-fill" onclick="saveUser()">Save</button>
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+requireRole('admin');
+let allUsers = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadUsers();
+  loadEmployeesForSelect();
+});
+
+async function loadUsers() {
+  try {
+    allUsers = await API.get('/auth/users');
+    renderUsers(allUsers);
+  } catch (e) { Toast.error('Failed to load users: ' + e.message); }
+}
+
+async function loadEmployeesForSelect() {
+  try {
+    const data = await API.get('/employees?per_page=200');
+    const sel = document.getElementById('user-emp-id');
+    (data.employees || []).forEach(e => sel.innerHTML += `<option value="${e.id}">${e.name} (${e.department})</option>`);
+  } catch {}
+}
+
+function filterUsers() {
+  const role = document.getElementById('role-filter').value;
+  const filtered = allUsers.filter(u => !role || u.role === role);
+  renderUsers(filtered);
+}
+
+function renderUsers(users) {
+  const roleColors = { admin: 'badge-danger', manager: 'badge-primary', employee: 'badge-info' };
+  const tbody = document.getElementById('users-tbody');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-title">No users found</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => `<tr>
+    <td>
+      <div class="flex gap-2" style="align-items:center">
+        <div class="avatar avatar-sm" style="background:${avatarColor(u.email)}">${avatarInitials(u.email)}</div>
+        <span style="font-size:13px">${u.email}</span>
+      </div>
+    </td>
+    <td><span class="badge ${roleColors[u.role] || 'badge-muted'}">${u.role}</span></td>
+    <td><span style="font-size:12px;color:var(--text-muted)">${u.employee_id ? 'EMP #'+u.employee_id : '—'}</span></td>
+    <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-danger'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+    <td style="font-size:12px;color:var(--text-muted)">${u.last_login ? new Date(u.last_login).toLocaleDateString() : 'Never'}</td>
+    <td>
+      <div class="flex gap-1">
+        <button class="btn btn-ghost btn-sm" onclick='editUser(${JSON.stringify(u).replace(/'/g,"&#39;")})' title="Edit">
+          <i class="bi bi-pencil"></i>
+        </button>
+        <button class="btn btn-ghost btn-sm" title="Toggle Active" onclick="toggleUser(${u.id}, ${u.is_active})"
+                style="color:${u.is_active ? 'var(--warning)' : 'var(--success)'}">
+          <i class="bi bi-${u.is_active ? 'pause-circle' : 'play-circle'}"></i>
+        </button>
+      </div>
+    </td>
+  </tr>`).join('');
+}
+
+function openCreateUser() {
+  document.getElementById('user-id').value = '';
+  document.getElementById('user-email').value = '';
+  document.getElementById('user-pw').value = '';
+  document.getElementById('user-role').value = 'employee';
+  document.getElementById('user-emp-id').value = '';
+  document.getElementById('modal-title').textContent = 'Create User';
+  document.getElementById('pw-hint').style.display = 'none';
+  document.getElementById('user-modal').style.display = 'flex';
+}
+
+function editUser(user) {
+  document.getElementById('user-id').value = user.id;
+  document.getElementById('user-email').value = user.email;
+  document.getElementById('user-pw').value = '';
+  document.getElementById('user-role').value = user.role;
+  document.getElementById('user-emp-id').value = user.employee_id || '';
+  document.getElementById('modal-title').textContent = 'Edit User';
+  document.getElementById('pw-hint').style.display = 'inline';
+  document.getElementById('user-modal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('user-modal').style.display = 'none';
+}
+
+async function saveUser() {
+  const id   = document.getElementById('user-id').value;
+  const email = document.getElementById('user-email').value.trim();
+  const pw    = document.getElementById('user-pw').value;
+  const role  = document.getElementById('user-role').value;
+  const empId = document.getElementById('user-emp-id').value;
+
+  if (!email) { Toast.warning('Email required'); return; }
+  if (!id && !pw) { Toast.warning('Password required for new user'); return; }
+
+  try {
+    if (id) {
+      const payload = { role, employee_id: empId ? parseInt(empId) : null };
+      if (pw) payload.password = pw;
+      await API.put(`/auth/users/${id}`, payload);
+      Toast.success('User updated');
+    } else {
+      await API.post('/auth/users', { email, password: pw, role, employee_id: empId ? parseInt(empId) : null });
+      Toast.success('User created');
+    }
+    closeModal();
+    loadUsers();
+  } catch (e) { Toast.error(e.message); }
+}
+
+async function toggleUser(userId, isActive) {
+  try {
+    await API.put(`/auth/users/${userId}`, { is_active: !isActive });
+    Toast.success('User status updated');
+    loadUsers();
+  } catch (e) { Toast.error(e.message); }
+}
+</script>
+{% endblock %}

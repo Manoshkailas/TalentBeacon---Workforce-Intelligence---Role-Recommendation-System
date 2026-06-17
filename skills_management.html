@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Skills Management{% endblock %}
+{% block page_title %}Skills Catalog{% endblock %}
+{% block page_subtitle %}Manage the master skills repository{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary btn-sm" onclick="openAddSkillModal()">
+  <i class="bi bi-plus-lg"></i> Add Skill
+</button>
+{% endblock %}
+
+{% block content %}
+<div id="auth-check"></div>
+
+<!-- Filters -->
+<div class="card mb-4 animate-in">
+  <div class="card-body" style="padding:16px">
+    <div style="display:flex;gap:12px;align-items:center">
+      <div style="flex:1;position:relative">
+        <i class="bi bi-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted)"></i>
+        <input class="form-control" id="search-input" placeholder="Search skills..." 
+               style="padding-left:36px" oninput="filterSkills()"/>
+      </div>
+      <select class="form-select" id="category-filter" style="width:180px" onchange="filterSkills()">
+        <option value="">All Categories</option>
+        <option value="technical">Technical</option>
+        <option value="analytics">Analytics</option>
+        <option value="soft">Soft Skills</option>
+        <option value="domain">Domain</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- Skills Grid -->
+<div id="skills-container">
+  <div class="flex-center" style="padding:60px">
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Skill Modal -->
+<div id="skill-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:none;align-items:center;justify-content:center">
+  <div class="card" style="width:460px;max-width:90vw">
+    <div class="card-header">
+      <span class="card-title" id="modal-title">Add Skill</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="card-body">
+      <input type="hidden" id="skill-id"/>
+      <div class="mb-3">
+        <label class="form-label">Skill Name *</label>
+        <input class="form-control" id="skill-name" placeholder="e.g. Python, Machine Learning"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Category *</label>
+        <select class="form-select" id="skill-category">
+          <option value="technical">Technical</option>
+          <option value="analytics">Analytics</option>
+          <option value="soft">Soft Skills</option>
+          <option value="domain">Domain</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea class="form-control" id="skill-desc" rows="2" placeholder="Optional description"></textarea>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary flex-fill" onclick="saveSkill()">Save Skill</button>
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+requireRole('admin', 'manager');
+let allSkills = [];
+
+document.addEventListener('DOMContentLoaded', loadSkills);
+
+async function loadSkills() {
+  try {
+    allSkills = await API.get('/skills');
+    renderSkills(allSkills);
+  } catch (e) { Toast.error('Failed to load skills'); }
+}
+
+function filterSkills() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const cat = document.getElementById('category-filter').value;
+  const filtered = allSkills.filter(s =>
+    (!q || s.name.toLowerCase().includes(q) || (s.description||'').toLowerCase().includes(q)) &&
+    (!cat || s.category === cat)
+  );
+  renderSkills(filtered);
+}
+
+function renderSkills(skills) {
+  const categories = ['technical', 'analytics', 'soft', 'domain'];
+  const byCategory = {};
+  categories.forEach(c => byCategory[c] = []);
+  skills.forEach(s => {
+    if (byCategory[s.category]) byCategory[s.category].push(s);
+    else byCategory['domain'] = byCategory['domain'] || [];
+  });
+
+  const catLabels = { technical: '⚙️ Technical', analytics: '📊 Analytics', soft: '💬 Soft Skills', domain: '🎯 Domain' };
+  const catColors = { technical: 'var(--primary-light)', analytics: 'var(--accent)', soft: 'var(--success)', domain: 'var(--warning)' };
+
+  let html = '';
+  categories.forEach(cat => {
+    const list = byCategory[cat] || [];
+    if (!list.length) return;
+    html += `
+      <div class="card mb-4 animate-in">
+        <div class="card-header">
+          <span class="card-title" style="color:${catColors[cat]}">${catLabels[cat]}</span>
+          <span class="badge badge-muted">${list.length} skills</span>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            ${list.map(s => `
+              <div class="skill-tag ${s.category}" style="cursor:pointer;position:relative"
+                   title="${s.description || s.name}">
+                ${s.name}
+                <span onclick="editSkill(${JSON.stringify(s).replace(/"/g,'&quot;')})" 
+                      style="margin-left:4px;opacity:0.6;font-size:10px;cursor:pointer">✎</span>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+  });
+
+  if (!html) html = '<div class="empty-state"><div class="empty-state-icon">⭐</div><div class="empty-state-title">No skills found</div></div>';
+  document.getElementById('skills-container').innerHTML = html;
+}
+
+function openAddSkillModal() {
+  document.getElementById('skill-id').value = '';
+  document.getElementById('skill-name').value = '';
+  document.getElementById('skill-desc').value = '';
+  document.getElementById('modal-title').textContent = 'Add Skill';
+  document.getElementById('skill-modal').style.display = 'flex';
+}
+
+function editSkill(skill) {
+  document.getElementById('skill-id').value = skill.id;
+  document.getElementById('skill-name').value = skill.name;
+  document.getElementById('skill-category').value = skill.category;
+  document.getElementById('skill-desc').value = skill.description || '';
+  document.getElementById('modal-title').textContent = 'Edit Skill';
+  document.getElementById('skill-modal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('skill-modal').style.display = 'none';
+}
+
+async function saveSkill() {
+  const id   = document.getElementById('skill-id').value;
+  const name = document.getElementById('skill-name').value.trim();
+  const cat  = document.getElementById('skill-category').value;
+  const desc = document.getElementById('skill-desc').value;
+  if (!name) { Toast.warning('Skill name is required'); return; }
+
+  try {
+    if (id) {
+      await API.put(`/skills/${id}`, { name, category: cat, description: desc });
+      Toast.success('Skill updated');
+    } else {
+      await API.post('/skills', { name, category: cat, description: desc });
+      Toast.success('Skill created');
+    }
+    closeModal();
+    loadSkills();
+  } catch (e) { Toast.error(e.message); }
+}
+</script>
+{% endblock %}

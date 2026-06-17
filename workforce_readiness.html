@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% block title %}Workforce Readiness{% endblock %}
+{% block page_title %}Workforce Readiness{% endblock %}
+{% block page_subtitle %}Predict employee readiness for target roles{% endblock %}
+
+{% block content %}
+<div id="auth-check"></div>
+
+<!-- Controls -->
+<div class="card mb-4 animate-in">
+  <div class="card-header">
+    <span class="card-title"><i class="bi bi-speedometer2" style="color:var(--primary)"></i> Readiness Analysis</span>
+    <span class="ai-badge">AI Powered</span>
+  </div>
+  <div class="card-body">
+    <div class="grid-3">
+      <div>
+        <label class="form-label">Target Role *</label>
+        <select class="form-select" id="role-select">
+          <option value="">Select a role...</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Department Filter</label>
+        <select class="form-select" id="dept-select">
+          <option value="">All Departments</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary w-100" id="analyze-btn" onclick="analyzeReadiness()">
+          <i class="bi bi-lightning-fill"></i> Compute Readiness Scores
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Results -->
+<div id="results-container" style="display:none">
+  <!-- Summary Stats -->
+  <div class="grid-4 mb-4" id="summary-stats"></div>
+
+  <div class="grid-2">
+    <!-- Distribution Chart -->
+    <div class="card animate-in">
+      <div class="card-header"><span class="card-title">Readiness Distribution</span></div>
+      <div class="card-body">
+        <div class="chart-container" style="height:260px">
+          <canvas id="dist-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Component Breakdown -->
+    <div class="card animate-in">
+      <div class="card-header"><span class="card-title">Average Component Scores</span></div>
+      <div class="card-body">
+        <div id="component-bars"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Employee Ranking Table -->
+  <div class="card mt-4 animate-in">
+    <div class="card-header">
+      <span class="card-title">Employee Readiness Ranking</span>
+      <div class="flex gap-2">
+        <button class="btn btn-outline btn-sm" onclick="exportReadiness('csv')">
+          <i class="bi bi-download"></i> CSV
+        </button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div style="overflow-x:auto">
+        <table class="tb-table" id="readiness-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Employee</th>
+              <th>Department</th>
+              <th>Score</th>
+              <th>Status</th>
+              <th>Skills</th>
+              <th>Certs</th>
+              <th>Exp</th>
+              <th>Learning</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="readiness-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Empty state -->
+<div id="empty-state" class="empty-state">
+  <div class="empty-state-icon">⚡</div>
+  <div class="empty-state-title">Select a role to analyze readiness</div>
+  <div class="empty-state-desc">Choose a target role and click Compute Readiness Scores</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+requireAuth();
+let currentData = null;
+let distChart = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const [roles, emps] = await Promise.all([
+      API.get('/roles'),
+      API.get('/employees/departments'),
+    ]);
+    const roleSelect = document.getElementById('role-select');
+    roles.forEach(r => {
+      roleSelect.innerHTML += `<option value="${r.id}">${r.name} (${r.seniority_level})</option>`;
+    });
+    const deptSelect = document.getElementById('dept-select');
+    emps.forEach(d => {
+      deptSelect.innerHTML += `<option value="${d}">${d}</option>`;
+    });
+  } catch (e) { Toast.error('Failed to load filters'); }
+});
+
+async function analyzeReadiness() {
+  const roleId = document.getElementById('role-select').value;
+  const dept   = document.getElementById('dept-select').value;
+  if (!roleId) { Toast.warning('Please select a target role'); return; }
+
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner-sm"></div> Computing...';
+
+  try {
+    const data = await API.post('/readiness-score/bulk', { role_id: parseInt(roleId), department: dept || null });
+    currentData = data;
+    renderResults(data);
+  } catch (e) {
+    Toast.error('Analysis failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-lightning-fill"></i> Compute Readiness Scores';
+  }
+}
+
+function renderResults(data) {
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('results-container').style.display = 'block';
+
+  const dist = data.distribution;
+  const statsEl = document.getElementById('summary-stats');
+  statsEl.innerHTML = `
+    <div class="stat-card green animate-in">
+      <div class="stat-icon green"><i class="bi bi-check-circle-fill"></i></div>
+      <div class="stat-info">
+        <div class="stat-value" data-count="${dist.ready}">${dist.ready}</div>
+        <div class="stat-label">Ready</div>
+      </div>
+    </div>
+    <div class="stat-card indigo animate-in">
+      <div class="stat-icon indigo"><i class="bi bi-arrow-up-circle-fill"></i></div>
+      <div class="stat-info">
+        <div class="stat-value" data-count="${dist.nearly_ready}">${dist.nearly_ready}</div>
+        <div class="stat-label">Nearly Ready</div>
+      </div>
+    </div>
+    <div class="stat-card cyan animate-in">
+      <div class="stat-icon warning"><i class="bi bi-hourglass-split"></i></div>
+      <div class="stat-info">
+        <div class="stat-value" data-count="${dist.in_progress}">${dist.in_progress}</div>
+        <div class="stat-label">In Progress</div>
+      </div>
+    </div>
+    <div class="stat-card purple animate-in">
+      <div class="stat-icon purple"><i class="bi bi-people-fill"></i></div>
+      <div class="stat-info">
+        <div class="stat-value">${data.avg_score}%</div>
+        <div class="stat-label">Avg Score</div>
+      </div>
+    </div>`;
+
+  // Distribution Chart
+  if (distChart) distChart.destroy();
+  const ctx = document.getElementById('dist-chart').getContext('2d');
+  distChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Ready', 'Nearly Ready', 'In Progress', 'Early Stage', 'Needs Dev'],
+      datasets: [{
+        data: [dist.ready, dist.nearly_ready, dist.in_progress, dist.early_stage, dist.needs_development],
+        backgroundColor: ['#10B981','#6366F1','#F59E0B','#EF4444','#64748B'],
+        borderWidth: 0, hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94A3B8', padding: 12, font: { size: 12 } } }
+      }
+    }
+  });
+
+  // Component bars
+  const comps = [
+    { name: 'Skills', key: 'skills', color: '#6366F1' },
+    { name: 'Certifications', key: 'certifications', color: '#8B5CF6' },
+    { name: 'Assessments', key: 'assessments', color: '#06B6D4' },
+    { name: 'Experience', key: 'experience', color: '#10B981' },
+    { name: 'Learning', key: 'learning', color: '#F59E0B' },
+  ];
+  const avgComps = {};
+  if (data.results.length > 0) {
+    comps.forEach(c => {
+      avgComps[c.key] = data.results.reduce((s, r) => s + (r.components[c.key] || 0), 0) / data.results.length;
+    });
+  }
+  document.getElementById('component-bars').innerHTML = comps.map(c => `
+    <div class="mb-3">
+      <div class="flex-between mb-1">
+        <span style="font-size:13px;color:var(--text-secondary)">${c.name}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--text-primary)">${(avgComps[c.key] || 0).toFixed(1)}%</span>
+      </div>
+      <div class="progress">
+        <div class="progress-bar" style="width:${avgComps[c.key] || 0}%;background:${c.color}"></div>
+      </div>
+    </div>`).join('');
+
+  // Table
+  const tbody = document.getElementById('readiness-tbody');
+  tbody.innerHTML = data.results.map((r, i) => {
+    const color = r.score >= 85 ? 'var(--success)' : r.score >= 70 ? 'var(--info)' : r.score >= 50 ? 'var(--warning)' : 'var(--danger)';
+    return `<tr>
+      <td>${rankBadge(i+1)}</td>
+      <td>
+        <div class="flex gap-2" style="align-items:center">
+          <div class="avatar avatar-sm" style="background:${avatarColor(r.employee_name)}">${avatarInitials(r.employee_name)}</div>
+          <div>
+            <div style="font-weight:600;font-size:13px">${r.employee_name}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${r.designation || ''}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge badge-muted">${r.department}</span></td>
+      <td>
+        <div class="flex gap-2" style="align-items:center">
+          <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:${color}">${r.score}%</div>
+          <div class="progress" style="width:60px"><div class="progress-bar" style="width:${r.score}%;background:${color}"></div></div>
+        </div>
+      </td>
+      <td><span class="badge ${r.label === 'Ready' ? 'badge-success' : r.label === 'Nearly Ready' ? 'badge-primary' : r.label === 'In Progress' ? 'badge-warning' : 'badge-danger'}">${r.label}</span></td>
+      <td>${(r.components.skills || 0).toFixed(0)}%</td>
+      <td>${(r.components.certifications || 0).toFixed(0)}%</td>
+      <td>${(r.components.experience || 0).toFixed(0)}%</td>
+      <td>${(r.components.learning || 0).toFixed(0)}%</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="viewGap(${r.employee_id})" title="View Skill Gap">
+          <i class="bi bi-bar-chart-fill"></i>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Animate numbers
+  document.querySelectorAll('[data-count]').forEach(el => animateNumber(el, parseInt(el.dataset.count)));
+}
+
+function viewGap(empId) {
+  const roleId = document.getElementById('role-select').value;
+  window.location.href = `/manager/skill-gap?emp=${empId}&role=${roleId}`;
+}
+
+function exportReadiness(fmt) {
+  if (!currentData) return;
+  const rows = [['Name','Department','Score','Status','Skills%','Certs%','Exp%','Learning%']];
+  currentData.results.forEach(r => {
+    rows.push([r.employee_name, r.department, r.score, r.label,
+      r.components.skills, r.components.certifications, r.components.experience, r.components.learning]);
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = 'readiness_scores.csv'; a.click();
+}
+</script>
+{% endblock %}
